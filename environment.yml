@@ -1,0 +1,22 @@
+# From github page:
+# https://github.com/MouseLand/suite2p/blob/2ee3a5c7a5d3bdf2a15a88ece30a001e01e0b2d3/environment.yml
+# Raw file:
+# https://raw.githubusercontent.com/MouseLand/suite2p/2ee3a5c7a5d3bdf2a15a88ece30a001e01e0b2d3/environment.yml
+
+name: suite2p
+dependencies:
+  - python>=3.7,<3.8
+  - pip
+  - mkl_fft=1.0.10
+  - mkl=2019.3
+  - numpy>=1.16
+  - numba>=0.43.1
+  - matplotlib
+  - scipy
+  - h5py
+  - scikit-image
+  - scikit-learn
+  - pyqt
+  - pip:
+    - suite2p
+    - rastermap>0.1.0
