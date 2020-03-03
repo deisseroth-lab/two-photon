@@ -12,7 +12,7 @@ from suite2p import run_s2p
 
 
 def main(basename_input, dirname_output, buffer, shift, channel, ripper,
-         fast_disk):
+         fast_disk, local_endpoint, remote_endpoint, remote_dirname):
 
     dirname_corrected = os.path.join(dirname_output, 'output')
     dirname_results = os.path.join(dirname_output, 'intermediates')
@@ -45,6 +45,17 @@ def main(basename_input, dirname_output, buffer, shift, channel, ripper,
 
     ops = run_suite_2p(fname_corrected, size, fast_disk)
     np.save(os.path.join(dirname_results, 'ops.npy'), ops)
+
+    if remote_dirname:
+        oak_sync(local_endpoint, dirname_output, remote_endpoint,
+                 remote_dirname)
+
+
+def oak_sync(local_endpoint, local_dirname, remote_endpoint, remote_dirname):
+    local = f'{local_endpoint:local_dirname}'
+    remote = f'{remote_endpoint:remote_dirname}'
+    cmd = ['globus', local, remote]
+    subprocess.run(cmd, check=True)
 
 
 def rip(base, ripper):
@@ -295,6 +306,18 @@ if __name__ == '__main__':
         default=3,
         help=
         'Number of rows to shift artefact position from calculated position')
+    group.add_argument('--local_endpoint',
+                       type=str,
+                       default='',
+                       help=('Local globus endpoint id.'))
+    group.add_argument('--remote_endpoint',
+                       type=str,
+                       default='',
+                       help=('Remote globus endpoint id.'))
+    group.add_argument('--remote_dirname',
+                       type=str,
+                       default='',
+                       help=('Remote dirname to sync results to.'))
 
     args = parser.parse_args()
 
@@ -307,4 +330,5 @@ if __name__ == '__main__':
                                   args.recording_name + '.preprocess')
 
     main(basename_input, dirname_output, args.artefact_buffer,
-         args.artefact_shift, args.channel, args.ripper, args.fast_disk)
+         args.artefact_shift, args.channel, args.ripper, args.fast_disk,
+         args.local_endpoint, args.remote_endpoint, args.remote_dirname)
