@@ -67,7 +67,7 @@ def rip(base, ripper):
     # Normally, the fname is passed to -AddRawFile.  But there is a bug in the software, so
     # we have to pop up one level and use -AddRawFileWithSubFolders.
     subprocess.run([
-        ripper, '-SetOutputDirectory', dirname, '-AddRawFileWithSubFolders',
+        ripper, '-SetOutputDirectory', dirname, '-IncludeSubFolders', '-AddRawFileWithSubFolders',
         dirname, '-Convert'
     ])
 
