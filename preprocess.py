@@ -21,13 +21,14 @@ logging.getLogger('tifffile').setLevel(logging.ERROR)
 
 def rip(base, ripper):
     LOGGER.info('Ripping')
-    fname = base + '_Filelist.txt'
-    dirname = os.path.dirname(fname)
+    fname = patlib.Path(str(base) + '_Filelist.txt')
+    dirname = fname.parent
     # Normally, the fname is passed to -AddRawFile.  But there is a bug in the software, so
     # we have to pop up one level and use -AddRawFileWithSubFolders.
     subprocess.run([
         ripper, '-SetOutputDirectory', dirname, '-IncludeSubFolders', '-AddRawFileWithSubFolders', dirname, '-Convert'
-    ])
+    ],
+                   check=True)
 
 
 def process(basename_input, dirname_output, buffer, shift, channel, fast_disk):
@@ -199,6 +200,9 @@ def read_raw_data(base, size, channel, fname):
     LOGGER.info('Reading raw data')
 
     def read(frame, z):
+        # TODO: Frame 0 has tons of OME-TIFF metadata which seems to make things slow.  Figure out how to make it faster and re-enable.
+        if frame == 0:
+            frame = 1
         fname = str(base) + f'_Cycle{frame+1:05d}_Ch{channel}_{z+1:06d}.ome.tif'
         return imread(fname)
 
@@ -206,8 +210,10 @@ def read_raw_data(base, size, channel, fname):
     dtype = read(0, 0).dtype
 
     data = np.zeros(shape, dtype)
-    for frame in range(size['frames']):
-        for z_plane in range(size['z_planes']):
+    for frame in range(shape[0]):
+        if not frame % 500:
+            LOGGER.info('Working on frame %05d of %05d', frame, shape[0])
+        for z_plane in range(shape[1]):
             data[frame, z_plane] = read(frame, z_plane)
 
     with h5py.File(fname, 'w') as hfile:
@@ -251,25 +257,42 @@ def run_suite_2p(fname_h5, size, fs_param, fast_disk, fname):
 
 
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser(description='Preprocess 2-photon raw data with suite2p')
-    group = parser.add_argument_group('Two-photon preprocessing arguments')
-    group.add_argument('--data_dir', type=pathlib.Path, required=True, help='Top Level directory of data collection')
-    group.add_argument('--fast_disk', type=pathlib.Path, required=True, help='Scratch directory for fast I/O storage')
+
+    control_group = parser.add_argument_group('Preprocessing control flags')
+    control_group.add_argument('--rip',
+                               action='store_true',
+                               help='Run the Prairie View Ripper to convert RAW data to TIFF')
+    control_group.add_argument('--process',
+                               action='store_true',
+                               help='Convert the TIFF to HDF5, remove artefacts, and run Suite2p')
+    control_group.add_argument('--backup', action='store_true', help='Backup all input and output data via Globus')
+
+    group = parser.add_argument_group('Preprocessing arguments')
+    group.add_argument('--data_dir', type=pathlib.Path, help='Top Level directory of data collection')
+    group.add_argument('--fast_disk',
+                       type=pathlib.Path,
+                       help='Scratch directory for fast I/O storage')
     group.add_argument('--session_name',
                        type=str,
-                       required=True,
                        help='Top-level name of the session, usually containing date and mouse ID, e.g. YYYYMMDDmmm')
-    group.add_argument('--recording_name', type=str, required=True, help='Unique name of the recording')
+    group.add_argument('--recording_name', type=str, help='Unique name of the recording')
     group.add_argument('--recording_prefix',
                        type=str,
                        help='Prefix of the recording filenames, IF different thant --recording_name.')
     group.add_argument('--channel', type=int, default=3, help='Microscrope channel containing the two-photon data')
-    group.add_argument('--ripper', type=str, help='If specified, first rip the data from raw data to hdf5.')
-    #R'C:\Program Files\Prairie\Prairie View\Utilities\Image-Block Ripping Utility.exe'
+
+    group.add_argument('--ripper',
+                       type=str,
+                       default=R'C:\Program Files\Prairie\Prairie View\Utilities\Image-Block Ripping Utility.exe',
+                       help='If specified, first rip the data from raw data to hdf5.')
+
     group.add_argument('--artefact_buffer', type=int, default=5, help='Rows to exclude surrounding calculated artefact')
     group.add_argument('--artefact_shift', type=int, default=3, help='Rows to shift artefact position from nominal.')
-    group.add_argument('--local_endpoint', type=str, default='', help=('Local globus endpoint id.'))
-    group.add_argument('--remote_endpoint', type=str, default='', help=('Remote globus endpoint id.'))
+
+    group.add_argument('--local_endpoint', type=str, default='ce898518-5c30-11ea-960a-0afc9e7dd773', help=('Local globus endpoint id (default is B115_imaging).'))
+    group.add_argument('--remote_endpoint', type=str, default='96a13ae8-1fb5-11e7-bc36-22000b9a448b', help=('Remote globus endpoint id (default is SRCC Oak).'))
     group.add_argument('--remote_dirname', type=str, default='', help=('Remote dirname to sync results to.'))
 
     args = parser.parse_args()
@@ -299,7 +322,8 @@ if __name__ == '__main__':
     if args.ripper:
         rip(basename_input, args.ripper)
 
-    process(basename_input, dirname_output, args.artefact_buffer, args.artefact_shift, args.channel, args.fast_disk)
+    if args.process:
+        process(basename_input, dirname_output, args.artefact_buffer, args.artefact_shift, args.channel, args.fast_disk)
 
     if args.remote_dirname:
         globas_sync(args.local_endpoint, dirname_root, args.remote_endpoint, args.remote_dirname)
