@@ -1,6 +1,6 @@
 version: '3.7'
 
 services:
-  two-photon-jupyter:
-    image: dlab/two-photon-jupyter
+  two-photon:
+    image: dlab/two-photon
     build: '.'
