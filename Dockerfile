@@ -8,7 +8,7 @@ RUN conda env update --quiet --name base --file environment.yml \
     && conda clean --all -f -y
 
 # Copy code last to avoid busting the cache.
-COPY preprocess.py .
+COPY *.py .
 
 ENTRYPOINT ["python", "preprocess.py"]
 CMD []

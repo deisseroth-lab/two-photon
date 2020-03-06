@@ -1,5 +1,6 @@
 import argparse
 import logging
+import json
 import os
 import pathlib
 import pprint
@@ -13,22 +14,37 @@ import pandas as pd
 from skimage.io import imread
 #from tifffile import imread
 
+import rip
+
 STIM_CHANNEL_NUM = 7
 
-LOGGER = logging.getLogger(__file__)
-logging.getLogger('tifffile').setLevel(logging.ERROR)
+logger = logging.getLogger(__file__)
 
 
-def rip(base, ripper):
-    LOGGER.info('Ripping')
-    fname = patlib.Path(str(base) + '_Filelist.txt')
-    dirname = fname.parent
-    # Normally, the fname is passed to -AddRawFile.  But there is a bug in the software, so
-    # we have to pop up one level and use -AddRawFileWithSubFolders.
-    subprocess.run([
-        ripper, '-SetOutputDirectory', dirname, '-IncludeSubFolders', '-AddRawFileWithSubFolders', dirname, '-Convert'
-    ],
-                   check=True)
+def main():
+    args = parse_args()
+
+    dirname_input = args.input_dir / args.session_name / args.recording_name
+    basename_input = dirname_input / args.recording_prefix
+
+    dirname_output = args.output_dir / args.session_name / args.recording_prefix
+    os.makedirs(dirname_output, exist_ok=True)
+
+    dirname_remote = args.remote_dirname / args.session_name / args.recording_prefix
+
+    setup_logging(dirname_output)
+
+    if args.rip:
+        rip.raw_to_tiff(basename_input, args.ripper)
+
+    if args.backup_data:
+        globus_sync(args.local_endpoint, dirname_input, args.remote_endpoint, dirname_remote / 'data')
+
+    if args.process:
+        process(basename_input, dirname_output, args.artefact_buffer, args.artefact_shift, args.channel, args.fast_disk)
+
+    if args.backup_processing:
+        globus_sync(args.local_endpoint, dirname_output, args.remote_endpoint, dirname_remote / 'processing')
 
 
 def process(basename_input, dirname_output, buffer, shift, channel, fast_disk):
@@ -38,8 +54,7 @@ def process(basename_input, dirname_output, buffer, shift, channel, fast_disk):
         os.makedirs(dirname, exist_ok=True)
         return dirname
 
-    dirname_corrected = out_dir('output')
-    dirname_intermediate = out_dir('intermediate')
+    dirname_corrected = out_dir('data')
     dirname_results = out_dir('results')
 
     basename_vr = pathlib.Path(str(basename_input) + '_Cycle00001_VoltageRecording_001')
@@ -47,26 +62,28 @@ def process(basename_input, dirname_output, buffer, shift, channel, fast_disk):
     fname_xml = basename_input.with_suffix('.xml')
     fname_vr_xml = basename_vr.with_suffix('.xml')
 
-    metadata = get_metadata(fname_xml, fname_vr_xml)
+    fname_metadata = dirname_results / 'metadata.json'
+    metadata = get_metadata(fname_xml, fname_vr_xml, fname_metadata)
     size = metadata['size']
     channels = metadata['channels']
     fs_param = 1. / (metadata['period'] * size['z_planes'])
 
     try:
-        stim_channel_name, stim_channel_enabled = channels[STIM_CHANNEL_NUM]
-        LOGGER.info('Found stim channel "%s", enabled=%s', stim_channel_name, stim_channel_enabled)
+        stim_channel_name = channels[STIM_CHANNEL_NUM]['name']
+        stim_channel_enabled = channels[STIM_CHANNEL_NUM]['enabled']
+        logger.info('Found stim channel "%s", enabled=%s', stim_channel_name, stim_channel_enabled)
     except KeyError:
         stim_channel_enabled = False
-        LOGGER.info('No stim channel found')
+        logger.info('No stim channel found')
 
-    fname_orig = dirname_intermediate / 'orig.h5'
+    fname_orig = dirname_results / 'uncorrected.h5'
     data = read_raw_data(basename_input, size, channel, fname_orig)
 
-    fname_corrected = dirname_corrected / 'corrected.h5'
+    fname_corrected = dirname_corrected / 'data.h5'
     if stim_channel_enabled:
         fname_vr_csv = basename_vr.with_suffix('.csv')
         df_voltage = get_voltage_recordings(fname_vr_csv)
-        fname_artefacts = dirname_intermediate / 'artefact.h5'
+        fname_artefacts = dirname_results / 'artefact.h5'
         df_artefacts = get_artefact_bounds(df_voltage, size, stim_channel_name, fname_artefacts)
         remove_artefacts(data, df_artefacts, shift, buffer, fname_corrected)
     else:
@@ -76,15 +93,15 @@ def process(basename_input, dirname_output, buffer, shift, channel, fast_disk):
     run_suite_2p(fname_corrected, size, fs_param, fast_disk, fname_ops)
 
 
-def globas_sync(local_endpoint, local_dirname, remote_endpoint, remote_dirname):
-    local = f'{local_endpoint:local_dirname}'
-    remote = f'{remote_endpoint:remote_dirname}'
+def globus_sync(local_endpoint, local_dirname, remote_endpoint, remote_dirname):
+    local = f'{local_endpoint}:{local_dirname}'
+    remote = f'{remote_endpoint}:{remote_dirname}'
     cmd = ['globus', local, remote]
     subprocess.run(cmd, check=True)
 
 
-def get_metadata(fname_xml, fname_vr_xml):
-    LOGGER.info('Extracting metadata from xml files:\n%s\n%s', fname_xml, fname_vr_xml)
+def get_metadata(fname_xml, fname_vr_xml, fname_metadata):
+    logger.info('Extracting metadata from xml files:\n%s\n%s', fname_xml, fname_vr_xml)
 
     mdata_root = ElementTree.parse(fname_xml).getroot()
 
@@ -117,7 +134,7 @@ def get_metadata(fname_xml, fname_vr_xml):
         channel_num = int(signal.find('Channel').text)
         channel_name = signal.find('Name').text
         enabled = signal.find('Enabled').text == 'true'
-        channels[channel_num] = (channel_name, enabled)
+        channels[channel_num] = {'name': channel_name, 'enabled': enabled}
 
     metadata = {
         'size': {
@@ -135,18 +152,22 @@ def get_metadata(fname_xml, fname_vr_xml):
         'optical_zoom': optical_zoom,
         'channels': channels,
     }
-    LOGGER.info(pprint.pformat(metadata))
+
+    with open(fname_metadata, 'w') as fout:
+        json.dump(metadata, fout, indent=4, sort_keys=True)
+
+    logger.info('The following metadata is written to: %s\n%s', fname_metadata, pprint.pformat(metadata))
     return metadata
 
 
 def get_voltage_recordings(fname):
     df = pd.read_csv(fname, index_col='Time(ms)', skipinitialspace=True)
-    LOGGER.info('Read voltage recordings from: %s, preview:\n%s', fname, df.head())
+    logger.info('Read voltage recordings from: %s, preview:\n%s', fname, df.head())
     return df
 
 
 def get_artefact_bounds(df, size, stim_channel_name, fname):
-    LOGGER.info('Calculating artefact regions')
+    logger.info('Calculating artefact regions')
 
     shape = (size['frames'], size['z_planes'])
     y_px = size['y_px']
@@ -185,7 +206,7 @@ def get_artefact_bounds(df, size, stim_channel_name, fname):
 
     df = pd.DataFrame({'frame': frame, 'z_plane': z_plane, 'y_min': y_px_start, 'y_max': y_px_stop})
     df.to_hdf(fname, 'data')
-    LOGGER.info('Stored calculated artefact positions in %s, preview:\n%s', fname, df.head())
+    logger.info('Stored calculated artefact positions in %s, preview:\n%s', fname, df.head())
     return df
 
 
@@ -197,7 +218,7 @@ def get_loc(times, frame_start, y_px, shape):
 
 
 def read_raw_data(base, size, channel, fname):
-    LOGGER.info('Reading raw data')
+    logger.info('Reading raw data')
 
     def read(frame, z):
         # TODO: Frame 0 has tons of OME-TIFF metadata which seems to make things slow.  Figure out how to make it faster and re-enable.
@@ -212,18 +233,18 @@ def read_raw_data(base, size, channel, fname):
     data = np.zeros(shape, dtype)
     for frame in range(shape[0]):
         if not frame % 500:
-            LOGGER.info('Working on frame %05d of %05d', frame, shape[0])
+            logger.info('Working on frame %05d of %05d', frame, shape[0])
         for z_plane in range(shape[1]):
             data[frame, z_plane] = read(frame, z_plane)
 
     with h5py.File(fname, 'w') as hfile:
         hfile.create_dataset('data', data=data)
-    LOGGER.info('Stored data with shape %s in %s', shape, fname)
+    logger.info('Stored data with shape %s in %s', shape, fname)
     return data
 
 
 def remove_artefacts(data, df, shift, buffer, fname):
-    LOGGER.info('Removing stim artefacts from data')
+    logger.info('Removing stim artefacts from data')
     for row in df.itertuples():
         y_slice = slice(int(row.y_min) + shift, int(row.y_max) + shift + buffer + 1)
         before = data[row.frame - 1, row.z_plane, y_slice]
@@ -232,14 +253,16 @@ def remove_artefacts(data, df, shift, buffer, fname):
 
     with h5py.File(fname, 'w') as hfile:
         hfile.create_dataset('data', data=data)
-    LOGGER.info('Stored artefact-removed data in %s', fname)
+    logger.info('Stored artefact-removed data in %s', fname)
 
 
 def run_suite_2p(fname_h5, size, fs_param, fast_disk, fname):
-    LOGGER.info('Running suite2p')
+    logger.info('Running suite2p')
+
+    # Load suite2p only right before use, as it has a long load time.
     from suite2p import run_s2p
     default_ops = run_s2p.default_ops()
-    db = {
+    params = {
         'h5py': str(fname_h5),
         'nplanes': size['z_planes'],
         'fast_disk': str(fast_disk),
@@ -251,29 +274,33 @@ def run_suite_2p(fname_h5, size, fs_param, fast_disk, fname):
         'sparse_mode': False,
         'threshold_scaling': 3,
     }
-    ops = run_s2p.run_s2p(ops=default_ops, db=db)
+    ops = run_s2p.run_s2p(ops=default_ops, db=params)
     np.save(fname, ops)
-    LOGGER.info('Save final suite2p ops in %s', fname)
+    logger.info('Save final suite2p ops in %s', fname)
 
 
-if __name__ == '__main__':
-
+def parse_args():
     parser = argparse.ArgumentParser(description='Preprocess 2-photon raw data with suite2p')
 
-    control_group = parser.add_argument_group('Preprocessing control flags')
-    control_group.add_argument('--rip',
-                               action='store_true',
-                               help='Run the Prairie View Ripper to convert RAW data to TIFF')
-    control_group.add_argument('--process',
-                               action='store_true',
-                               help='Convert the TIFF to HDF5, remove artefacts, and run Suite2p')
-    control_group.add_argument('--backup', action='store_true', help='Backup all input and output data via Globus')
-
     group = parser.add_argument_group('Preprocessing arguments')
-    group.add_argument('--data_dir', type=pathlib.Path, help='Top Level directory of data collection')
-    group.add_argument('--fast_disk',
+
+    group = parser.add_argument_group('Preprocessing control flags')
+
+    group.add_argument('--rip', action='store_true', help='Run the Prairie View Ripper to convert RAW data to TIFF')
+    group.add_argument('--ripper',
+                       type=str,
+                       default=R'C:\Program Files\Prairie\Prairie View\Utilities\Image-Block Ripping Utility.exe',
+                       help='If specified, first rip the data from raw data to hdf5.')
+
+    group.add_argument('--process',
+                       action='store_true',
+                       help='Convert the TIFF to HDF5, remove artefacts, and run Suite2p')
+    group.add_argument('--input_dir',
                        type=pathlib.Path,
-                       help='Scratch directory for fast I/O storage')
+                       help='Top Level directory of data collection (where microscope writes files)')
+    group.add_argument('--output_dir', type=pathlib.Path, help='Top Level directory of data processing')
+
+    group.add_argument('--fast_disk', type=pathlib.Path, help='Scratch directory for fast I/O storage')
     group.add_argument('--session_name',
                        type=str,
                        help='Top-level name of the session, usually containing date and mouse ID, e.g. YYYYMMDDmmm')
@@ -282,48 +309,39 @@ if __name__ == '__main__':
                        type=str,
                        help='Prefix of the recording filenames, IF different thant --recording_name.')
     group.add_argument('--channel', type=int, default=3, help='Microscrope channel containing the two-photon data')
-
-    group.add_argument('--ripper',
-                       type=str,
-                       default=R'C:\Program Files\Prairie\Prairie View\Utilities\Image-Block Ripping Utility.exe',
-                       help='If specified, first rip the data from raw data to hdf5.')
-
     group.add_argument('--artefact_buffer', type=int, default=5, help='Rows to exclude surrounding calculated artefact')
     group.add_argument('--artefact_shift', type=int, default=3, help='Rows to shift artefact position from nominal.')
 
-    group.add_argument('--local_endpoint', type=str, default='ce898518-5c30-11ea-960a-0afc9e7dd773', help=('Local globus endpoint id (default is B115_imaging).'))
-    group.add_argument('--remote_endpoint', type=str, default='96a13ae8-1fb5-11e7-bc36-22000b9a448b', help=('Remote globus endpoint id (default is SRCC Oak).'))
-    group.add_argument('--remote_dirname', type=str, default='', help=('Remote dirname to sync results to.'))
+    group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping) via Globus')
+    group.add_argument('--backup_processing', action='store_true', help='Backup all output processing via Globus')
+    group.add_argument('--local_endpoint',
+                       type=str,
+                       default='ce898518-5c30-11ea-960a-0afc9e7dd773',
+                       help='Local globus endpoint id (default is B115_imaging).')
+    group.add_argument('--remote_endpoint',
+                       type=str,
+                       default='96a13ae8-1fb5-11e7-bc36-22000b9a448b',
+                       help='Remote globus endpoint id (default is SRCC Oak).')
+    group.add_argument('--remote_dirname', type=pathlib.Path, default='', help='Remote dirname to sync results to.')
 
     args = parser.parse_args()
 
     # If recording_prefix not specified, use recording_name.
-    recording_prefix = args.recording_prefix or args.recording_name
+    args.recording_prefix = args.recording_prefix or args.recording_name
 
-    dirname_root = args.data_dir / args.session_name
-    dirname_input = dirname_root / args.recording_name
-    basename_input = dirname_input / recording_prefix
-    dirname_output = dirname_input.with_suffix('.preprocess')
+    return args
 
-    os.makedirs(dirname_output, exist_ok=True)  # Make directory for logging
 
-    # Set up logging to write all INFO messages to both a file and to the stdout stream.
-    LOGGER.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s %(name)s:%(lineno)s %(levelname)3s %(message)s')
+def setup_logging(dirname_output):
+    """Set up logging to write all INFO messages to both the stdout stram and a file."""
+    fname_logs = dirname_output / 'preprocess.log'
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(module)s:%(lineno)3s %(levelname)s %(message)s',
+                        handlers=[logging.StreamHandler(), logging.FileHandler(fname_logs)])
 
-    logger_fh = logging.FileHandler(dirname_output / 'preprocess.log')
-    logger_fh.setFormatter(formatter)
-    LOGGER.addHandler(logger_fh)
+    # Turn of verbose WARN messages from the tifffile library.
+    logging.getLogger('tifffile').setLevel(logging.ERROR)
 
-    logger_sh = logging.StreamHandler()
-    logger_sh.setFormatter(formatter)
-    LOGGER.addHandler(logger_sh)
 
-    if args.ripper:
-        rip(basename_input, args.ripper)
-
-    if args.process:
-        process(basename_input, dirname_output, args.artefact_buffer, args.artefact_shift, args.channel, args.fast_disk)
-
-    if args.remote_dirname:
-        globas_sync(args.local_endpoint, dirname_root, args.remote_endpoint, args.remote_dirname)
+if __name__ == '__main__':
+    main()
