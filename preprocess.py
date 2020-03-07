@@ -1,20 +1,19 @@
+"""Script for running the initial processing and backups for Bruker 2p data."""
+
 import argparse
 import logging
-import json
 import os
 import pathlib
-import pprint
-import shutil
 import subprocess
-from xml.etree import ElementTree
 
-import h5py
 import numpy as np
 import pandas as pd
-from skimage.io import imread
-#from tifffile import imread
 
+import artefacts
+import metadata
 import rip
+import tiffdata
+import transform
 
 STIM_CHANNEL_NUM = 7
 
@@ -22,8 +21,11 @@ logger = logging.getLogger(__file__)
 
 
 def main():
+    """Deiver method to run processing from the command line."""
     args = parse_args()
 
+    # Locations for intput data to be read, output data to be written, and remote
+    # data to by sync'd.
     dirname_input = args.input_dir / args.session_name / args.recording_name
     basename_input = dirname_input / args.recording_prefix
 
@@ -41,230 +43,70 @@ def main():
         globus_sync(args.local_endpoint, dirname_input, args.remote_endpoint, dirname_remote / 'data')
 
     if args.process:
-        process(basename_input, dirname_output, args.artefact_buffer, args.artefact_shift, args.channel, args.fast_disk)
+        mdata = metadata.read(basename_input, dirname_output)
+        fname_data = process(basename_input, dirname_output, mdata, args.artefact_buffer, args.artefact_shift,
+                             args.channel)
+        fast_disk = args.fast_disk / args.session_name / args.recording_name / args.recording_prefix
+        run_suite_2p(fname_data, dirname_output, mdata, fast_disk)
 
     if args.backup_processing:
         globus_sync(args.local_endpoint, dirname_output, args.remote_endpoint, dirname_remote / 'processing')
 
 
-def process(basename_input, dirname_output, buffer, shift, channel, fast_disk):
-    # Create and make sure output directories are writable.
-    def out_dir(subdir):
-        dirname = dirname_output / subdir
-        os.makedirs(dirname, exist_ok=True)
-        return dirname
+def process(basename_input, dirname_output, mdata, buffer, shift, channel):
+    """Main method for running processing of TIFF files into HDF5."""
 
-    dirname_corrected = out_dir('data')
-    dirname_results = out_dir('results')
+    dirname_corrected = dirname_output / 'data'
+    os.makedirs(dirname_corrected, exist_ok=True)
 
-    basename_vr = pathlib.Path(str(basename_input) + '_Cycle00001_VoltageRecording_001')
-
-    fname_xml = basename_input.with_suffix('.xml')
-    fname_vr_xml = basename_vr.with_suffix('.xml')
-
-    fname_metadata = dirname_results / 'metadata.json'
-    metadata = get_metadata(fname_xml, fname_vr_xml, fname_metadata)
-    size = metadata['size']
-    channels = metadata['channels']
-    fs_param = 1. / (metadata['period'] * size['z_planes'])
+    size = mdata['size']
+    stim_channel = mdata['channels'][STIM_CHANNEL_NUM]
 
     try:
-        stim_channel_name = channels[STIM_CHANNEL_NUM]['name']
-        stim_channel_enabled = channels[STIM_CHANNEL_NUM]['enabled']
+        stim_channel_name = stim_channel['name']
+        stim_channel_enabled = stim_channel['enabled']
         logger.info('Found stim channel "%s", enabled=%s', stim_channel_name, stim_channel_enabled)
     except KeyError:
         stim_channel_enabled = False
         logger.info('No stim channel found')
 
-    fname_orig = dirname_results / 'uncorrected.h5'
-    data = read_raw_data(basename_input, size, channel, fname_orig)
-
-    fname_corrected = dirname_corrected / 'data.h5'
     if stim_channel_enabled:
-        fname_vr_csv = basename_vr.with_suffix('.csv')
-        df_voltage = get_voltage_recordings(fname_vr_csv)
-        fname_artefacts = dirname_results / 'artefact.h5'
-        df_artefacts = get_artefact_bounds(df_voltage, size, stim_channel_name, fname_artefacts)
-        remove_artefacts(data, df_artefacts, shift, buffer, fname_corrected)
-    else:
-        shutil.move(fname_orig, fname_corrected)
+        fname_csv = pathlib.Path(str(basename_input) + '_Cycle00001_VoltageRecording_001').with_suffix('.csv')
+        df_voltage = pd.read_csv(fname_csv, index_col='Time(ms)', skipinitialspace=True)
+        logger.info('Read voltage recordings from: %s, preview:\n%s', fname_csv, df_voltage.head())
 
-    fname_ops = dirname_results / 'ops.npy'
-    run_suite_2p(fname_corrected, size, fs_param, fast_disk, fname_ops)
+        fname_artefacts = dirname_output / 'artefact.h5'
+        df_artefacts = artefacts.get_bounds(df_voltage, size, stim_channel_name, fname_artefacts)
+    else:
+        df_artefacts = None
+
+    data = tiffdata.read(basename_input, size, channel)
+    fname_uncorrected = dirname_output / 'uncorrected.h5'
+    fname_data = dirname_corrected / 'data.h5'
+    transform.convert(data, fname_data, df_artefacts, fname_uncorrected, shift, buffer)
+    return fname_data
 
 
 def globus_sync(local_endpoint, local_dirname, remote_endpoint, remote_dirname):
+    """Start a Globus sync operation."""
     local = f'{local_endpoint}:{local_dirname}'
     remote = f'{remote_endpoint}:{remote_dirname}'
     cmd = ['globus', local, remote]
     subprocess.run(cmd, check=True)
 
 
-def get_metadata(fname_xml, fname_vr_xml, fname_metadata):
-    logger.info('Extracting metadata from xml files:\n%s\n%s', fname_xml, fname_vr_xml)
-
-    mdata_root = ElementTree.parse(fname_xml).getroot()
-
-    def state_value(key, type_fn=str):
-        element = mdata_root.find(f'.//PVStateValue[@key="{key}"]')
-        value = element.attrib['value']
-        return type_fn(value)
-
-    def indexed_value(key, index, type_fn=None):
-        element = mdata_root.find(f'.//PVStateValue[@key="{key}"]/IndexedValue[@index="{index}"]')
-        value = element.attrib['value']
-        return type_fn(value)
-
-    num_frames = len(mdata_root.findall('Sequence'))
-    num_channels = len(mdata_root.find('Sequence/Frame').findall('File'))
-    num_z_planes = len(mdata_root.find('Sequence').findall('Frame'))
-    num_y_px = state_value('linesPerFrame', int)
-    num_x_px = state_value('pixelsPerLine', int)
-
-    laser_power = indexed_value('laserPower', 0, float)
-    laser_wavelength = indexed_value('laserWavelength', 0, int)
-
-    frame_period = state_value('framePeriod', float)
-    optical_zoom = state_value('opticalZoom', float)
-
-    voltage_root = ElementTree.parse(fname_vr_xml).getroot()
-
-    channels = {}
-    for signal in voltage_root.findall('Experiment/SignalList/VRecSignal'):
-        channel_num = int(signal.find('Channel').text)
-        channel_name = signal.find('Name').text
-        enabled = signal.find('Enabled').text == 'true'
-        channels[channel_num] = {'name': channel_name, 'enabled': enabled}
-
-    metadata = {
-        'size': {
-            'frames': num_frames,
-            'channels': num_channels,
-            'z_planes': num_z_planes,
-            'y_px': num_y_px,
-            'x_px': num_x_px
-        },
-        'laser': {
-            'power': laser_power,
-            'wavelength': laser_wavelength
-        },
-        'period': frame_period,
-        'optical_zoom': optical_zoom,
-        'channels': channels,
-    }
-
-    with open(fname_metadata, 'w') as fout:
-        json.dump(metadata, fout, indent=4, sort_keys=True)
-
-    logger.info('The following metadata is written to: %s\n%s', fname_metadata, pprint.pformat(metadata))
-    return metadata
-
-
-def get_voltage_recordings(fname):
-    df = pd.read_csv(fname, index_col='Time(ms)', skipinitialspace=True)
-    logger.info('Read voltage recordings from: %s, preview:\n%s', fname, df.head())
-    return df
-
-
-def get_artefact_bounds(df, size, stim_channel_name, fname):
-    logger.info('Calculating artefact regions')
-
-    shape = (size['frames'], size['z_planes'])
-    y_px = size['y_px']
-
-    frame = df['frame starts']
-    frame_start = frame[frame.diff() > 2.5].index
-
-    stim = df[stim_channel_name]
-    stim_start = stim[stim.diff() > 2.5].index
-    stim_stop = stim[stim.diff() < -2.5].index
-
-    ix_start, y_off_start = get_loc(stim_start, frame_start, y_px, shape)
-    ix_stop, y_off_stop = get_loc(stim_stop, frame_start, y_px, shape)
-
-    frame = []
-    z_plane = []
-    y_px_start = []
-    y_px_stop = []
-    for (ix_start_cyc, ix_start_z), (ix_stop_cyc, ix_stop_z), y_min, y_max in zip(ix_start, ix_stop, y_off_start,
-                                                                                  y_off_stop):
-        if (ix_start_cyc == ix_stop_cyc) and (ix_start_z == ix_stop_z):
-            frame.append(ix_start_cyc)
-            z_plane.append(ix_start_z)
-            y_px_start.append(y_min)
-            y_px_stop.append(y_max)
-        else:
-            frame.append(ix_start_cyc)
-            z_plane.append(ix_start_z)
-            y_px_start.append(y_min)
-            y_px_stop.append(y_px)
-
-            frame.append(ix_stop_cyc)
-            z_plane.append(ix_stop_z)
-            y_px_start.append(0)
-            y_px_stop.append(y_max)
-
-    df = pd.DataFrame({'frame': frame, 'z_plane': z_plane, 'y_min': y_px_start, 'y_max': y_px_stop})
-    df.to_hdf(fname, 'data')
-    logger.info('Stored calculated artefact positions in %s, preview:\n%s', fname, df.head())
-    return df
-
-
-def get_loc(times, frame_start, y_px, shape):
-    interp = np.interp(times, frame_start, range(len(frame_start)))
-    indices = interp.astype(np.int)
-    y_offset = y_px * (interp - indices)
-    return np.transpose(np.unravel_index(indices, shape)), y_offset
-
-
-def read_raw_data(base, size, channel, fname):
-    logger.info('Reading raw data')
-
-    def read(frame, z):
-        # TODO: Frame 0 has tons of OME-TIFF metadata which seems to make things slow.  Figure out how to make it faster and re-enable.
-        if frame == 0:
-            frame = 1
-        fname = str(base) + f'_Cycle{frame+1:05d}_Ch{channel}_{z+1:06d}.ome.tif'
-        return imread(fname)
-
-    shape = (size['frames'], size['z_planes'], size['y_px'], size['x_px'])
-    dtype = read(0, 0).dtype
-
-    data = np.zeros(shape, dtype)
-    for frame in range(shape[0]):
-        if not frame % 500:
-            logger.info('Working on frame %05d of %05d', frame, shape[0])
-        for z_plane in range(shape[1]):
-            data[frame, z_plane] = read(frame, z_plane)
-
-    with h5py.File(fname, 'w') as hfile:
-        hfile.create_dataset('data', data=data)
-    logger.info('Stored data with shape %s in %s', shape, fname)
-    return data
-
-
-def remove_artefacts(data, df, shift, buffer, fname):
-    logger.info('Removing stim artefacts from data')
-    for row in df.itertuples():
-        y_slice = slice(int(row.y_min) + shift, int(row.y_max) + shift + buffer + 1)
-        before = data[row.frame - 1, row.z_plane, y_slice]
-        after = data[row.frame + 1, row.z_plane, y_slice]
-        data[row.frame, row.z_plane, y_slice] = (before + after) / 2
-
-    with h5py.File(fname, 'w') as hfile:
-        hfile.create_dataset('data', data=data)
-    logger.info('Stored artefact-removed data in %s', fname)
-
-
-def run_suite_2p(fname_h5, size, fs_param, fast_disk, fname):
+def run_suite_2p(fname_h5, dirname_output, mdata, fast_disk):
     logger.info('Running suite2p')
+
+    z_planes = mdata['size']['z_planes']
+    fs_param = 1. / (mdata['period'] * z_planes)
 
     # Load suite2p only right before use, as it has a long load time.
     from suite2p import run_s2p
     default_ops = run_s2p.default_ops()
     params = {
         'h5py': str(fname_h5),
-        'nplanes': size['z_planes'],
+        'nplanes': z_planes,
         'fast_disk': str(fast_disk),
         'data_path': [],
         'fs': fs_param,
@@ -275,11 +117,14 @@ def run_suite_2p(fname_h5, size, fs_param, fast_disk, fname):
         'threshold_scaling': 3,
     }
     ops = run_s2p.run_s2p(ops=default_ops, db=params)
-    np.save(fname, ops)
-    logger.info('Save final suite2p ops in %s', fname)
+
+    fname_ops = dirname_output / 'ops.npy'
+    np.save(fname_ops, ops)
+    logger.info('Save final suite2p ops in %s', fname_ops)
 
 
 def parse_args():
+    """Gather command line arguments."""
     parser = argparse.ArgumentParser(description='Preprocess 2-photon raw data with suite2p')
 
     group = parser.add_argument_group('Preprocessing arguments')
@@ -309,8 +154,11 @@ def parse_args():
                        type=str,
                        help='Prefix of the recording filenames, IF different thant --recording_name.')
     group.add_argument('--channel', type=int, default=3, help='Microscrope channel containing the two-photon data')
-    group.add_argument('--artefact_buffer', type=int, default=5, help='Rows to exclude surrounding calculated artefact')
-    group.add_argument('--artefact_shift', type=int, default=3, help='Rows to shift artefact position from nominal.')
+    group.add_argument('--artefact_buffer',
+                       type=int,
+                       default=14,
+                       help='Rows to exclude surrounding calculated artefact')
+    group.add_argument('--artefact_shift', type=int, default=2, help='Rows to shift artefact position from nominal.')
 
     group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping) via Globus')
     group.add_argument('--backup_processing', action='store_true', help='Backup all output processing via Globus')
@@ -336,7 +184,8 @@ def setup_logging(dirname_output):
     """Set up logging to write all INFO messages to both the stdout stram and a file."""
     fname_logs = dirname_output / 'preprocess.log'
     logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(module)s:%(lineno)3s %(levelname)s %(message)s',
+                        format='%(asctime)s.%(msecs)03d %(module)s:%(lineno)s %(levelname)s %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S',
                         handlers=[logging.StreamHandler(), logging.FileHandler(fname_logs)])
 
     # Turn of verbose WARN messages from the tifffile library.
