@@ -15,12 +15,12 @@ def get_bounds(df, size, stim_channel_name, fname):
     shape = (size['frames'], size['z_planes'])
     y_px = size['y_px']
 
-    frame_start = df['frame starts']
-    frame_start = frame_start[frame_start.diff() > 2.5].index
+    frame_start_cat = df['frame starts'].apply(lambda x: 1 if x > 1 else 0)
+    frame_start = frame_start_cat[frame_start_cat.diff() > 0.5].index
 
-    stim = df[stim_channel_name]
-    stim_start = stim[stim.diff() > 2.5].index
-    stim_stop = stim[stim.diff() < -2.5].index
+    stim = df[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
+    stim_start = stim[stim.diff() > 0.5].index
+    stim_stop = stim[stim.diff() < -0.5].index
 
     ix_start, y_off_start = get_loc(stim_start, frame_start, y_px, shape)
     ix_stop, y_off_stop = get_loc(stim_stop, frame_start, y_px, shape)
