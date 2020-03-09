@@ -156,7 +156,7 @@ def parse_args():
     group.add_argument('--channel', type=int, default=3, help='Microscrope channel containing the two-photon data')
     group.add_argument('--artefact_buffer',
                        type=int,
-                       default=14,
+                       default=18,
                        help='Rows to exclude surrounding calculated artefact')
     group.add_argument('--artefact_shift', type=int, default=2, help='Rows to shift artefact position from nominal.')
 
