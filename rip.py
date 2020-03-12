@@ -15,18 +15,23 @@ class RippingError(Exception):
     """Error raised if problems encountered during data conversion."""
 
 
-def raw_to_tiff(base, ripper):
+def raw_to_tiff(dirname, ripper):
     """Convert Bruker RAW files to TIFF files using ripping utility specified with `ripper`."""
-    fname = pathlib.Path(str(base) + '_Filelist.txt')
+    fname = dirname / 'Cycle00001_Filelist.txt'
     if not fname.exists():
         raise RippingError('Input file list file is not present: %s' % fname)
     logger.info('Ripping using file list: %s', fname)
-    dirname = fname.parent
 
     # Normally, the fname is passed to -AddRawFile.  But there is a bug in the software, so
     # we have to pop up one level and use -AddRawFileWithSubFolders.
     cmd = [
-        ripper, '-IncludeSubFolders', '-AddRawFileWithSubFolders', dirname, '-SetOutputDirectory', dirname, '-Convert'
+        ripper,
+        '-IncludeSubFolders',
+        '-AddRawFileWithSubFolders',
+        str(dirname),
+        '-SetOutputDirectory',
+        str(dirname),
+        '-Convert',
     ]
 
     # Run a subprocess to execute the ripping.  Note this is non-blocking because the
@@ -60,9 +65,9 @@ def raw_to_tiff(base, ripper):
         time.sleep(loop_sec)
 
         fname_exists = os.path.exists(fname)
-        raw_exists = glob.glob(dirname / '*RAWDATA*')
+        raw_exists = glob.glob(str(dirname / '*RAWDATA*'))
 
-        output_tiffs = set(glob.glob(base / '*.ome.tif'))
+        output_tiffs = set(glob.glob(str(dirname / '*.ome.tif')))
         tiffs_changed = (last_output_tiffs == output_tiffs)
         last_output_tiffs = output_tiffs
 

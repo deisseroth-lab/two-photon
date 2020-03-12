@@ -41,7 +41,7 @@ def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None, artefac
             unlink(fname_uncorrected)
             data.to_hdf5(fname_uncorrected, HDF5_KEY)
 
-            logger.info('Writing corrected data to %s', fname_uncorrected)
+            logger.info('Writing corrected data to %s', fname_data)
             with h5py.File(fname_uncorrected, 'r') as hfile:
                 arr = da.from_array(hfile[HDF5_KEY])
                 depth = (1, 0, 0, 0)

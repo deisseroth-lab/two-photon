@@ -29,14 +29,22 @@ def read(basename_input, dirname_output):
         value = element.attrib['value']
         return type_fn(value)
 
-    num_frames = len(mdata_root.findall('Sequence'))
+    num_sequences = len(mdata_root.findall('Sequence'))
+    num_frames_per_sequence = len(mdata_root.find('Sequence').findall('Frame'))
+
+    if num_sequences == 1:
+        num_z_planes = 1
+        num_frames = num_frames_per_sequence
+    else:
+        num_z_planes = num_frames_per_sequence
+        num_frames = num_sequences
+
     num_channels = len(mdata_root.find('Sequence/Frame').findall('File'))
-    num_z_planes = len(mdata_root.find('Sequence').findall('Frame'))
     num_y_px = state_value('linesPerFrame', int)
     num_x_px = state_value('pixelsPerLine', int)
 
-    laser_power = indexed_value('laserPower', 0, float)
-    laser_wavelength = indexed_value('laserWavelength', 0, int)
+    #laser_power = indexed_value('laserPower', 0, float)
+    #laser_wavelength = indexed_value('laserWavelength', 0, int)
 
     frame_period = state_value('framePeriod', float)
     optical_zoom = state_value('opticalZoom', float)
@@ -58,10 +66,10 @@ def read(basename_input, dirname_output):
             'y_px': num_y_px,
             'x_px': num_x_px
         },
-        'laser': {
-            'power': laser_power,
-            'wavelength': laser_wavelength
-        },
+        #        'laser': {
+        #            'power': laser_power,
+        #            'wavelength': laser_wavelength
+        #        },
         'period': frame_period,
         'optical_zoom': optical_zoom,
         'channels': channels,

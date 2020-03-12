@@ -1,4 +1,8 @@
-"""Script for running the initial processing and backups for Bruker 2p data."""
+"""Script for running the initial processing and backups for Bruker 2p data.
+
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --fast_disk E:\AD\fast --recording 20200202:M79 --remote_dirname=groups/deissero/users/drinnenb/Data2p
+
+"""
 
 import argparse
 from datetime import datetime
@@ -27,28 +31,28 @@ def main():
     args = parse_args()
 
     def recording_split(recording):
-        pieces = recording.split('/')
-        if len(pieces) == 3:
-            return pieces
-        return pieces[0], pieces[1], pieces[1]
+        pieces = recording.split(':')
+        if len(pieces) != 2:
+            raise ValueError('Recording should be SESSION:RECORDING.  Got %s' % recording)
+        return pieces
 
-    session_name, recording_name, recording_prefix = recording_split(args.recording)
+    session_name, recording_name = recording_split(args.recording)
 
     # Locations for intput data to be read, output data to be written, and remote
     # data to by sync'd.
-    dirname_input = args.input_dir / session_name / recording_name
-    basename_input = dirname_input / recording_prefix
+    dirname_input = args.input_dir / session_name
+    basename_input = dirname_input / recording_name / recording_name  # The subdirectory and file prefix are `recording_name`
 
-    dirname_output = args.output_dir / session_name / recording_name / recording_prefix
+    dirname_output = args.output_dir / session_name / recording_name
     os.makedirs(dirname_output, exist_ok=True)
 
-    dirname_remote = args.remote_dirname / session_name / recording_name / recording_prefix
-    fast_disk = args.fast_disk / session_name / recording_name / recording_prefix
+    dirname_remote = args.remote_dirname / session_name / recording_name
+    fast_disk = args.fast_disk / session_name / recording_name
 
     setup_logging(dirname_output)
 
     if args.rip:
-        rip.raw_to_tiff(basename_input, args.ripper)
+        rip.raw_to_tiff(dirname_input / recording_name, args.ripper)
 
     if args.backup_data:
         oak_sync(args.local_endpoint, dirname_input, args.remote_endpoint, dirname_remote / 'data',
@@ -59,14 +63,14 @@ def main():
 
         slm_root = args.slm_setup_dir / slm_date
         slm1 = slm_root / slm_mouse
-        slm2 = slm_root / ('*_' + slm_mouse.lower() + '_' + recording_name)
+        slm2 = slm_root / ('*_' + slm_mouse + '_' + recording_name)
 
-        oak_sync(args.local_endpoint, slm1, args.remote_endpoint, dirname_remote / 'slm1',
-                 f'{session_name} {recording_name} SLM batch 1')
-        oak_sync(args.local_endpoint, slm2, args.remote_endpoint, dirname_remote / 'slm2',
-                 f'{session_name} {recording_name} SLM batch 2')
+        oak_sync(args.local_endpoint, slm1, args.remote_endpoint, dirname_remote / 'targets',
+                 f'{session_name} {recording_name} SLM targets')
+        oak_sync(args.local_endpoint, slm2, args.remote_endpoint, dirname_remote / 'trial_order',
+                 f'{session_name} {recording_name} SLM trial')
 
-    if args.preprocess or args.run_suite_2p:
+    if args.preprocess or args.run_suite2p:
         mdata = metadata.read(basename_input, dirname_output)
         # This needs to be kept in sync with prev_data format below.
         fname_data = dirname_output / 'data' / 'data.h5'
@@ -74,22 +78,15 @@ def main():
             os.makedirs(fname_data.parent, exist_ok=True)
             preprocess(basename_input, dirname_output, fname_data, mdata, args.artefact_buffer, args.artefact_shift,
                        args.channel)
-        if args.run_suite_2p:
+        if args.run_suite2p:
             data_files = [fname_data]
-            dirname_2p = dirname_output
-            fast_disk_2p = fast_disk
             for prev_recording in args.prev_recording:
-                sn, rn, rp = recording_split(prev_recording)
+                sn, rn = recording_split(prev_recording)
                 # This needs to be kept in sync with fname_data format above.
-                prev_data = args.output_dir / sn / rn / rp / 'data' / 'data.h5'
+                prev_data = args.output_dir / sn / rn / 'data' / 'data.h5'
                 data_files.append(prev_data)
 
-                # TODO: This is a workaround to avoid two processings of the same day, but with different
-                # prev_recordings, to co-exist.  There should be a nicer way.
-                dirname_2p = dirname_2p / sn / rn / rp
-                fast_disk_2p = fast_disk_2p / sn / rn / rp
-
-            run_suite_2p(data_files, dirname_2p, mdata, fast_disk_2p)
+            run_suite2p(data_files, dirname_output, mdata, fast_disk)
 
     if args.backup_processing:
         oak_sync(args.local_endpoint, dirname_output, args.remote_endpoint, dirname_remote / 'processing',
@@ -134,7 +131,7 @@ def oak_sync(local_endpoint, local_dirname, oak_endpoint, oak_dirname, label):
     # subprocess.run(cmd, check=True)
 
 
-def run_suite_2p(h5_list, dirname_output, mdata, fast_disk):
+def run_suite2p(h5_list, dirname_output, mdata, fast_disk):
     z_planes = mdata['size']['z_planes']
     fs_param = 1. / (mdata['period'] * z_planes)
 
@@ -179,7 +176,7 @@ def parse_args():
     group.add_argument('--preprocess',
                        action='store_true',
                        help='Convert the TIFF to HDF5 and, if needed, remove artefacts')
-    group.add_argument('--run_suite_2p', action='store_true', help='Run Suite2p')
+    group.add_argument('--run_suite2p', action='store_true', help='Run Suite2p')
 
     group.add_argument('--input_dir',
                        type=pathlib.Path,
