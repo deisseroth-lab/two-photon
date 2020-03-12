@@ -9,7 +9,7 @@ import h5py
 
 logger = logging.getLogger(__name__)
 
-HDF5_KEY = '/data'
+HDF5_KEY = '/data'  # Default key name in Suite2P.
 
 
 # In python 3.8:
@@ -25,15 +25,18 @@ def unlink(fname):
 def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None, artefact_shift=None, artefact_buffer=None):
     """Convert TIFF files from 2p dataset in HDF5.  Optionally create artefact-removed dataset."""
     # Important: code expects no chunking in z, y, z -- need to have -1 for these dimensions.
-    data = data.rechunk((64, -1, -1, -1))
+    data = data.rechunk((64, -1, -1, -1))  # 64 frames will be processed together for artefact removal.
 
     with diagnostics.ProgressBar():
         if df_artefacts is None:
             logger.info('Writing data to %s', fname_data)
             unlink(fname_data)
             data.to_hdf5(fname_data, HDF5_KEY)
-
         else:
+            # This writes 2 hdf5 files, where the 2nd one depends on the same data being
+            # written to the first.  Ideally, both would be written simultaneously, but
+            # that cannot be done using dask.  Instead, the 1st file is written and then
+            # read back to write the 2nd one.
             logger.info('Writing uncorrected data to %s', fname_uncorrected)
             unlink(fname_uncorrected)
             data.to_hdf5(fname_uncorrected, HDF5_KEY)
@@ -65,7 +68,8 @@ def remove_artefacts(chunk, df, shift, buffer, mydepth, block_info):
     frame_max -= frame_offset
 
     for index, frame in enumerate(range(frame_min, frame_max)):
-        # Skip first/last frames, which are just overlaps for computation purposes
+        # Skip first/last frames, which are just the edge frames pulled in to allow
+        # computation using before/after.
         if index in (0, chunk.shape[0] - 1):
             continue
 
@@ -73,6 +77,8 @@ def remove_artefacts(chunk, df, shift, buffer, mydepth, block_info):
         if frame not in df.index:
             continue
 
+        # Use `frame:frame` so the following slice always returns a frame.  Using just `frame`
+        # would lead to a series being returned if there was only one present.
         for row in df.loc[frame:frame].itertuples():
             y_slice = slice(int(row.y_min) + shift, int(row.y_max) + shift + buffer + 1)
             before = chunk[index - 1, row.z_plane, y_slice]
