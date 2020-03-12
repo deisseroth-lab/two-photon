@@ -24,15 +24,24 @@ def main():
     """Deiver method to run processing from the command line."""
     args = parse_args()
 
+    def recording_split(recording):
+        pieces = recording.split('/')
+        if len(pieces) == 3:
+            return pieces
+        return pieces[0], pieces[1], pieces[1]
+
+    session_name, recording_name, recording_prefix = recording_split(args.recording)
+
     # Locations for intput data to be read, output data to be written, and remote
     # data to by sync'd.
-    dirname_input = args.input_dir / args.session_name / args.recording_name
-    basename_input = dirname_input / args.recording_prefix
+    dirname_input = args.input_dir / session_name / recording_name
+    basename_input = dirname_input / recording_prefix
 
-    dirname_output = args.output_dir / args.session_name / args.recording_prefix
+    dirname_output = args.output_dir / session_name / recording_name / recording_prefix
     os.makedirs(dirname_output, exist_ok=True)
 
-    dirname_remote = args.remote_dirname / args.session_name / args.recording_prefix
+    dirname_remote = args.remote_dirname / session_name / recording_name / recording_prefix
+    fast_disk = args.fast_disk / session_name / recording_name / recording_prefix
 
     setup_logging(dirname_output)
 
@@ -44,16 +53,30 @@ def main():
 
     if args.preprocess or args.run_suite_2p:
         mdata = metadata.read(basename_input, dirname_output)
-        dirname_corrected = dirname_output / 'data'
-        fname_data = dirname_corrected / 'data.h5'
-
+        # This needs to be kept in sync with prev_data format below.
+        fname_data = dirname_output / 'data' / 'data.h5'
         if args.preprocess:
-            os.makedirs(dirname_corrected, exist_ok=True)
+            os.makedirs(fname_data.parent, exist_ok=True)
             preprocess(basename_input, dirname_output, fname_data, mdata, args.artefact_buffer, args.artefact_shift,
                        args.channel)
         if args.run_suite_2p:
-            fast_disk = args.fast_disk / args.session_name / args.recording_name / args.recording_prefix
-            run_suite_2p(fname_data, dirname_output, mdata, fast_disk)
+            data_files = [fname_data]
+            dirname_2p = dirname_output
+            fast_disk_2p = fast_disk
+            for prev_recording in args.prev_recording:
+                print(prev_recording)
+
+                sn, rn, rp = recording_split(prev_recording)
+                # This needs to be kept in sync with fname_data format above.
+                prev_data = args.output_dir / sn / rn / rp / 'data' / 'data.h5'
+                data_files.append(prev_data)
+
+                # TODO: This is a workaround to avoid two processings of the same day, but with different
+                # prev_recordings, to co-exist.  There should be a nicer way.
+                dirname_2p = dirname_2p / sn / rn / rp
+                fast_disk_2p = fast_disk_2p / sn / rn / rp
+
+            run_suite_2p(data_files, dirname_2p, mdata, fast_disk_2p)
 
     if args.backup_processing:
         globus_sync(args.local_endpoint, dirname_output, args.remote_endpoint, dirname_remote / 'processing')
@@ -96,9 +119,7 @@ def globus_sync(local_endpoint, local_dirname, remote_endpoint, remote_dirname):
     subprocess.run(cmd, check=True)
 
 
-def run_suite_2p(fname_h5, dirname_output, mdata, fast_disk):
-    logger.info('Running suite2p')
-
+def run_suite_2p(h5_list, dirname_output, mdata, fast_disk):
     z_planes = mdata['size']['z_planes']
     fs_param = 1. / (mdata['period'] * z_planes)
 
@@ -106,10 +127,11 @@ def run_suite_2p(fname_h5, dirname_output, mdata, fast_disk):
     from suite2p import run_s2p
     default_ops = run_s2p.default_ops()
     params = {
-        'h5py': str(fname_h5),
+        'input_format': 'h5',
+        'data_path': [str(f.parent) for f in h5_list],
+        'save_path0': str(dirname_output),
         'nplanes': z_planes,
         'fast_disk': str(fast_disk),
-        'data_path': [],
         'fs': fs_param,
         'sav_mat': True,
         'bidi_corrected': True,
@@ -117,6 +139,7 @@ def run_suite_2p(fname_h5, dirname_output, mdata, fast_disk):
         'sparse_mode': False,
         'threshold_scaling': 3,
     }
+    logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in h5_list), params)
     ops = run_s2p.run_s2p(ops=default_ops, db=params)
 
     fname_ops = dirname_output / 'ops.npy'
@@ -149,13 +172,18 @@ def parse_args():
     group.add_argument('--output_dir', type=pathlib.Path, help='Top Level directory of data processing')
 
     group.add_argument('--fast_disk', type=pathlib.Path, help='Scratch directory for fast I/O storage')
-    group.add_argument('--session_name',
+
+    group.add_argument('--recording',
                        type=str,
-                       help='Top-level name of the session, usually containing date and mouse ID, e.g. YYYYMMDDmmm')
-    group.add_argument('--recording_name', type=str, help='Unique name of the recording')
-    group.add_argument('--recording_prefix',
+                       help=('Name of a recording, given as a slash separated id of SESSION/RECORDING/OPTIONAL_PREFIX '
+                             'e.g. 20200202M79/stimL23-000 or 20200124M74/stimL23-000/stim3dL23withBeam-001'))
+    group.add_argument('--prev_recording',
                        type=str,
-                       help='Prefix of the recording filenames, IF different thant --recording_name.')
+                       nargs='+',
+                       default=[],
+                       help=('Name of one or more already preprocessed recordings to merge during suite2p.  '
+                             'See --recording for format.'))
+
     group.add_argument('--channel', type=int, default=3, help='Microscrope channel containing the two-photon data')
     group.add_argument('--artefact_buffer',
                        type=int,
@@ -176,9 +204,6 @@ def parse_args():
     group.add_argument('--remote_dirname', type=pathlib.Path, default='', help='Remote dirname to sync results to.')
 
     args = parser.parse_args()
-
-    # If recording_prefix not specified, use recording_name.
-    args.recording_prefix = args.recording_prefix or args.recording_name
 
     return args
 
