@@ -42,23 +42,25 @@ def main():
     if args.backup_data:
         globus_sync(args.local_endpoint, dirname_input, args.remote_endpoint, dirname_remote / 'data')
 
-    if args.process:
+    if args.preprocess or args.run_suite_2p:
         mdata = metadata.read(basename_input, dirname_output)
-        fname_data = process(basename_input, dirname_output, mdata, args.artefact_buffer, args.artefact_shift,
-                             args.channel)
-        fast_disk = args.fast_disk / args.session_name / args.recording_name / args.recording_prefix
-        run_suite_2p(fname_data, dirname_output, mdata, fast_disk)
+        dirname_corrected = dirname_output / 'data'
+        fname_data = dirname_corrected / 'data.h5'
+
+        if args.preprocess:
+            os.makedirs(dirname_corrected, exist_ok=True)
+            preprocess(basename_input, dirname_output, fname_data, mdata, args.artefact_buffer, args.artefact_shift,
+                       args.channel)
+        if args.run_suite_2p:
+            fast_disk = args.fast_disk / args.session_name / args.recording_name / args.recording_prefix
+            run_suite_2p(fname_data, dirname_output, mdata, fast_disk)
 
     if args.backup_processing:
         globus_sync(args.local_endpoint, dirname_output, args.remote_endpoint, dirname_remote / 'processing')
 
 
-def process(basename_input, dirname_output, mdata, buffer, shift, channel):
+def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift, channel):
     """Main method for running processing of TIFF files into HDF5."""
-
-    dirname_corrected = dirname_output / 'data'
-    os.makedirs(dirname_corrected, exist_ok=True)
-
     size = mdata['size']
     stim_channel = mdata['channels'][STIM_CHANNEL_NUM]
 
@@ -82,9 +84,8 @@ def process(basename_input, dirname_output, mdata, buffer, shift, channel):
 
     data = tiffdata.read(basename_input, size, channel)
     fname_uncorrected = dirname_output / 'uncorrected.h5'
-    fname_data = dirname_corrected / 'data.h5'
+
     transform.convert(data, fname_data, df_artefacts, fname_uncorrected, shift, buffer)
-    return fname_data
 
 
 def globus_sync(local_endpoint, local_dirname, remote_endpoint, remote_dirname):
@@ -137,9 +138,11 @@ def parse_args():
                        default=R'C:\Program Files\Prairie\Prairie View\Utilities\Image-Block Ripping Utility.exe',
                        help='If specified, first rip the data from raw data to hdf5.')
 
-    group.add_argument('--process',
+    group.add_argument('--preprocess',
                        action='store_true',
-                       help='Convert the TIFF to HDF5, remove artefacts, and run Suite2p')
+                       help='Convert the TIFF to HDF5 and, if needed, remove artefacts')
+    group.add_argument('--run_suite_2p', action='store_true', help='Run Suite2p')
+
     group.add_argument('--input_dir',
                        type=pathlib.Path,
                        help='Top Level directory of data collection (where microscope writes files)')

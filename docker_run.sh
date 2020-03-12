@@ -6,7 +6,7 @@
 set -e  # Exit immediately on error
 set -x  # Display command when running it
 
-# --user and --group-add options are to allow read/write to data and notebook directories
+# --user and --group-add options are to allow read/write to data directories
 # from within container.
 docker run \
        --user $(id -u $USER) \
