@@ -46,7 +46,7 @@ def main():
     dirname_output = args.output_dir / session_name / recording_name
     os.makedirs(dirname_output, exist_ok=True)
 
-    dirname_remote = args.remote_dirname / session_name / recording_name
+    dirname_remote = '/'.join([args.remote_dirname, session_name, recording_name])
     fast_disk = args.fast_disk / session_name / recording_name
 
     setup_logging(dirname_output)
@@ -55,7 +55,7 @@ def main():
         rip.raw_to_tiff(dirname_input / recording_name, args.ripper)
 
     if args.backup_data:
-        oak_sync(args.local_endpoint, dirname_input, args.remote_endpoint, dirname_remote / 'data',
+        oak_sync(args.local_endpoint, dirname_input, args.remote_endpoint, dirname_remote + '/data',
                  f'{session_name} {recording_name} raw data')
 
         slm_date = datetime.strptime(session_name[:8], '%Y%m%d').strftime('%d-%b-%Y')
@@ -65,10 +65,10 @@ def main():
         slm1 = slm_root / slm_mouse
         slm2 = slm_root / ('*_' + slm_mouse + '_' + recording_name)
 
-        oak_sync(args.local_endpoint, slm1, args.remote_endpoint, dirname_remote / 'targets',
-                 f'{session_name} {recording_name} SLM targets')
-        oak_sync(args.local_endpoint, slm2, args.remote_endpoint, dirname_remote / 'trial_order',
-                 f'{session_name} {recording_name} SLM trial')
+        # oak_sync(args.local_endpoint, slm1, args.remote_endpoint, dirname_remote + '/targets',
+        #          f'{session_name} {recording_name} SLM targets')
+        # oak_sync(args.local_endpoint, slm2, args.remote_endpoint, dirname_remote + '/trial_order',
+        #          f'{session_name} {recording_name} SLM trial')
 
     if args.preprocess or args.run_suite2p:
         mdata = metadata.read(basename_input, dirname_output)
@@ -124,11 +124,12 @@ def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift,
 
 def oak_sync(local_endpoint, local_dirname, oak_endpoint, oak_dirname, label):
     """Sync local data to OAK filesystem."""
+    if str(local_dirname)[1] == ':':
+        local_dirname = '/' + str(local_dirname).replace('\\', '/').replace(':', '')
     local = f'{local_endpoint}:{local_dirname}'
     remote = f'{oak_endpoint}:{oak_dirname}'
     cmd = ['globus', 'transfer', local, remote, '--recursive', '--label', label]
-    print(cmd)
-    # subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True)
 
 
 def run_suite2p(h5_list, dirname_output, mdata, fast_disk):
@@ -216,7 +217,7 @@ def parse_args():
                        type=str,
                        default='96a13ae8-1fb5-11e7-bc36-22000b9a448b',
                        help='Remote globus endpoint id (default is SRCC Oak).')
-    group.add_argument('--remote_dirname', type=pathlib.Path, default='', help='Remote dirname to sync results to.')
+    group.add_argument('--remote_dirname', type=str, default='', help='Remote dirname to sync results to.')
 
     args = parser.parse_args()
 
