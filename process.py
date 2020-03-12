@@ -1,9 +1,11 @@
 """Script for running the initial processing and backups for Bruker 2p data."""
 
 import argparse
+from datetime import datetime
 import logging
 import os
 import pathlib
+import re
 import subprocess
 
 import numpy as np
@@ -49,7 +51,20 @@ def main():
         rip.raw_to_tiff(basename_input, args.ripper)
 
     if args.backup_data:
-        globus_sync(args.local_endpoint, dirname_input, args.remote_endpoint, dirname_remote / 'data')
+        oak_sync(args.local_endpoint, dirname_input, args.remote_endpoint, dirname_remote / 'data',
+                 f'{session_name} {recording_name} raw data')
+
+        slm_date = datetime.strptime(session_name[:8], '%Y%m%d').strftime('%d-%b-%Y')
+        slm_mouse = session_name[8:]
+
+        slm_root = args.slm_setup_dir / slm_date
+        slm1 = slm_root / slm_mouse
+        slm2 = slm_root / ('*_' + slm_mouse.lower() + '_' + recording_name)
+
+        oak_sync(args.local_endpoint, slm1, args.remote_endpoint, dirname_remote / 'slm1',
+                 f'{session_name} {recording_name} SLM batch 1')
+        oak_sync(args.local_endpoint, slm2, args.remote_endpoint, dirname_remote / 'slm2',
+                 f'{session_name} {recording_name} SLM batch 2')
 
     if args.preprocess or args.run_suite_2p:
         mdata = metadata.read(basename_input, dirname_output)
@@ -64,8 +79,6 @@ def main():
             dirname_2p = dirname_output
             fast_disk_2p = fast_disk
             for prev_recording in args.prev_recording:
-                print(prev_recording)
-
                 sn, rn, rp = recording_split(prev_recording)
                 # This needs to be kept in sync with fname_data format above.
                 prev_data = args.output_dir / sn / rn / rp / 'data' / 'data.h5'
@@ -79,7 +92,8 @@ def main():
             run_suite_2p(data_files, dirname_2p, mdata, fast_disk_2p)
 
     if args.backup_processing:
-        globus_sync(args.local_endpoint, dirname_output, args.remote_endpoint, dirname_remote / 'processing')
+        oak_sync(args.local_endpoint, dirname_output, args.remote_endpoint, dirname_remote / 'processing',
+                 f'{session_name} {recording_name} processed data')
 
 
 def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift, channel):
@@ -111,12 +125,13 @@ def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift,
     transform.convert(data, fname_data, df_artefacts, fname_uncorrected, shift, buffer)
 
 
-def globus_sync(local_endpoint, local_dirname, remote_endpoint, remote_dirname):
-    """Start a Globus sync operation."""
+def oak_sync(local_endpoint, local_dirname, oak_endpoint, oak_dirname, label):
+    """Sync local data to OAK filesystem."""
     local = f'{local_endpoint}:{local_dirname}'
-    remote = f'{remote_endpoint}:{remote_dirname}'
-    cmd = ['globus', local, remote]
-    subprocess.run(cmd, check=True)
+    remote = f'{oak_endpoint}:{oak_dirname}'
+    cmd = ['globus', 'transfer', local, remote, '--recursive', '--label', label]
+    print(cmd)
+    # subprocess.run(cmd, check=True)
 
 
 def run_suite_2p(h5_list, dirname_output, mdata, fast_disk):
@@ -168,9 +183,12 @@ def parse_args():
 
     group.add_argument('--input_dir',
                        type=pathlib.Path,
-                       help='Top Level directory of data collection (where microscope writes files)')
-    group.add_argument('--output_dir', type=pathlib.Path, help='Top Level directory of data processing')
-
+                       help='Top level directory of data collection (where microscope writes files)')
+    group.add_argument('--slm_setup_dir',
+                       type=pathlib.Path,
+                       default='Z:/mSLM_B115/SetupFiles/Experiment',
+                       help='Top level directory for SLM setup data')
+    group.add_argument('--output_dir', type=pathlib.Path, help='Top level directory of data processing')
     group.add_argument('--fast_disk', type=pathlib.Path, help='Scratch directory for fast I/O storage')
 
     group.add_argument('--recording',
