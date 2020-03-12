@@ -9,6 +9,10 @@ from xml.etree import ElementTree
 logger = logging.getLogger(__file__)
 
 
+class MetadataError(Exception):
+    """Error while extracting metadata."""
+
+
 def read(basename_input, dirname_output):
     """Read in metdata from XML files."""
     fname_xml = basename_input.with_suffix('.xml')
@@ -24,27 +28,30 @@ def read(basename_input, dirname_output):
         value = element.attrib['value']
         return type_fn(value)
 
-    def indexed_value(key, index, type_fn=None):
+    def indexed_value(key, index, type_fn=None, required=True):
         element = mdata_root.find(f'.//PVStateValue[@key="{key}"]/IndexedValue[@index="{index}"]')
+        if not element:
+            if required:
+                raise MetadataError('Could not find required key:index of %s:%s' % (key, index))
+            return None
         value = element.attrib['value']
         return type_fn(value)
 
     num_sequences = len(mdata_root.findall('Sequence'))
     num_frames_per_sequence = len(mdata_root.find('Sequence').findall('Frame'))
-
     if num_sequences == 1:
-        num_z_planes = 1
         num_frames = num_frames_per_sequence
+        num_z_planes = 1
     else:
-        num_z_planes = num_frames_per_sequence
         num_frames = num_sequences
+        num_z_planes = num_frames_per_sequence
 
     num_channels = len(mdata_root.find('Sequence/Frame').findall('File'))
     num_y_px = state_value('linesPerFrame', int)
     num_x_px = state_value('pixelsPerLine', int)
 
-    #laser_power = indexed_value('laserPower', 0, float)
-    #laser_wavelength = indexed_value('laserWavelength', 0, int)
+    laser_power = indexed_value('laserPower', 0, float, required=False)
+    laser_wavelength = indexed_value('laserWavelength', 0, int, required=False)
 
     frame_period = state_value('framePeriod', float)
     optical_zoom = state_value('opticalZoom', float)
@@ -59,6 +66,10 @@ def read(basename_input, dirname_output):
         channels[channel_num] = {'name': channel_name, 'enabled': enabled}
 
     metadata = {
+        'layout': {
+            'sequences': num_sequences,
+            'frames_per_sequence': num_frames_per_sequence,
+        },
         'size': {
             'frames': num_frames,
             'channels': num_channels,
@@ -66,10 +77,10 @@ def read(basename_input, dirname_output):
             'y_px': num_y_px,
             'x_px': num_x_px
         },
-        #        'laser': {
-        #            'power': laser_power,
-        #            'wavelength': laser_wavelength
-        #        },
+        'laser': {
+            'power': laser_power,
+            'wavelength': laser_wavelength
+        },
         'period': frame_period,
         'optical_zoom': optical_zoom,
         'channels': channels,

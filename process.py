@@ -116,7 +116,7 @@ def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift,
     else:
         df_artefacts = None
 
-    data = tiffdata.read(basename_input, size, channel)
+    data = tiffdata.read(basename_input, size, mdata['layout'], channel)
     fname_uncorrected = dirname_output / 'uncorrected.h5'
 
     transform.convert(data, fname_data, df_artefacts, fname_uncorrected, shift, buffer)
