@@ -13,6 +13,7 @@ from datetime import datetime
 import logging
 import os
 import pathlib
+import platform
 import re
 import subprocess
 
@@ -28,6 +29,10 @@ import transform
 STIM_CHANNEL_NUM = 7
 
 logger = logging.getLogger(__file__)
+
+
+class BackupError(Exception):
+    pass
 
 
 def main():
@@ -127,7 +132,16 @@ def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift,
 
 def backup(local_dirname, backup_dirname):
     """Sync local data to backup directory."""
-    cmd = ['robocopy.exe', local_dirname, backup_dirname, '/S']  # '/S' means copy subfolders
+    if os.path.exists(backup_dirname):
+        raise BackupError('Cannot back up to already existing directory: %s' % backup_dirname)
+    system = platform.system()
+    if system == 'Windows':
+        cmd = ['robocopy.exe', str(local_dirname), str(backup_dirname), '/S']  # '/S' means copy subfolders
+    elif system == 'Linux':
+        os.makedirs(backup_dirname.parent)
+        cmd = ['rsync', '-avh', str(local_dirname) + '/', str(backup_dirname)]
+    else:
+        raise BackupError('Do not recognize system: %s' % system)
     subprocess.run(cmd, check=True)
 
 
