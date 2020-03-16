@@ -1,11 +1,11 @@
 """Script for running the initial processing and backups for Bruker 2p data.
 
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --fast_disk E:\AD\fast --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --rip
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --fast_disk E:\AD\fast --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --backup_data
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --fast_disk E:\AD\fast --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --preprocess
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --fast_disk E:\AD\fast --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --run_suite2p
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --fast_disk E:\AD\fast --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --run_suite2p --prev_recording 20200310M88:regL23-000 
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --fast_disk E:\AD\fast --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --backup_output
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --rip
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --backup_data
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --preprocess
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --run_suite2p
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --run_suite2p --prev_recording 20200310M88:regL23-000
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --backup_output
 """
 
 import argparse
@@ -51,7 +51,6 @@ def main():
     os.makedirs(dirname_output, exist_ok=True)
 
     dirname_remote = '/'.join([args.remote_dirname, session_name, recording_name])
-    fast_disk = args.fast_disk / session_name / recording_name
 
     setup_logging(dirname_output)
 
@@ -90,7 +89,7 @@ def main():
                 prev_data = args.output_dir / sn / rn / 'data' / 'data.h5'
                 data_files.append(prev_data)
 
-            run_suite2p(data_files, dirname_output, mdata, fast_disk)
+            run_suite2p(data_files, dirname_output, mdata)
 
     if args.backup_processing:
         oak_sync(args.local_endpoint, dirname_output, args.remote_endpoint, dirname_remote / 'processing',
@@ -136,7 +135,7 @@ def oak_sync(local_endpoint, local_dirname, oak_endpoint, oak_dirname, label):
     subprocess.run(cmd, check=True)
 
 
-def run_suite2p(h5_list, dirname_output, mdata, fast_disk):
+def run_suite2p(h5_list, dirname_output, mdata):
     z_planes = mdata['size']['z_planes']
     fs_param = 1. / (mdata['period'] * z_planes)
 
@@ -148,7 +147,6 @@ def run_suite2p(h5_list, dirname_output, mdata, fast_disk):
         'data_path': [str(f.parent) for f in h5_list],
         'save_path0': str(dirname_output),
         'nplanes': z_planes,
-        'fast_disk': str(fast_disk),
         'fs': fs_param,
         'sav_mat': True,
         'bidi_corrected': True,
@@ -191,7 +189,6 @@ def parse_args():
                        default='Z:/mSLM_B115/SetupFiles/Experiment',
                        help='Top level directory for SLM setup data')
     group.add_argument('--output_dir', type=pathlib.Path, help='Top level directory of data processing')
-    group.add_argument('--fast_disk', type=pathlib.Path, help='Scratch directory for fast I/O storage')
 
     group.add_argument('--recording',
                        type=str,
