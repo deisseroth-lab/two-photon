@@ -101,7 +101,7 @@ def main():
 
             run_suite2p(data_files, dirname_output, mdata)
 
-    if args.backup_processing:
+    if args.backup_output:
         backup(dirname_output, dirname_backup / 'processed')
 
 
@@ -205,7 +205,7 @@ def parse_args():
     group.add_argument('--artefact_shift', type=int, default=2, help='Rows to shift artefact position from nominal.')
 
     group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping) via Globus')
-    group.add_argument('--backup_processing', action='store_true', help='Backup all output processing via Globus')
+    group.add_argument('--backup_output', action='store_true', help='Backup all output processing via Globus')
     group.add_argument('--backup_dir', type=pathlib.Path, default='', help='Remote dirname to sync results to.')
 
     args = parser.parse_args()
