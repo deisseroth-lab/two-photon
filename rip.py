@@ -10,6 +10,13 @@ import time
 
 logger = logging.getLogger(__name__)
 
+# Ripping process does not end cleanly, so the filesystem is polled to detect the
+# processing finishing.  The following variables relate to the timing of that polling
+# process.
+RIP_TOTAL_WAIT_SECS = 3600  # Total time to wait for ripping before killing it.
+RIP_EXTRA_WAIT_SECS = 10  # Extra time to wait after ripping is detected to be done.
+RIP_POLL_SECS = 10  # Time to wait between polling the filesystem.
+
 
 class RippingError(Exception):
     """Error raised if problems encountered during data conversion."""
@@ -56,13 +63,12 @@ def raw_to_tiff(dirname, ripper):
     atexit.register(cleanup)
 
     # Wait for the file list and raw data to disappear
-    remaining_sec = 3600
-    loop_sec = 10
+    remaining_sec = RIP_TOTAL_WAIT_SECS
     last_output_tiffs = {}
     while remaining_sec >= 0:
         logging.info('Waiting for ripper to finish: %d seconds remaining', remaining_sec)
-        remaining_sec -= loop_sec
-        time.sleep(loop_sec)
+        remaining_sec -= RIP_POLL_SECS
+        time.sleep(RIP_POLL_SECS)
 
         fname_exists = os.path.exists(fname)
         raw_exists = glob.glob(str(dirname / '*RAWDATA*'))
@@ -73,7 +79,9 @@ def raw_to_tiff(dirname, ripper):
 
         if not fname_exists and not raw_exists and not tiffs_changed:
             logging.info('Detected ripping is complete')
-            time.sleep(30)  # Wait an extra 30 seconds before terminating ripper, just to be safe.
+            time.sleep(RIP_EXTRA_WAIT_SECS)  # Wait an extra 30 seconds before terminating ripper, just to be safe.
             logging.info('Killing ripper')
             process.kill()
-            break
+            return
+
+    raise RippingError('Killed ripper because it did not finish within %s seconds' % RIP_TOTAL_WAIT_SECS)
