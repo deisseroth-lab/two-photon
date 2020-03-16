@@ -114,13 +114,15 @@ def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift,
     """Main method for running processing of TIFF files into HDF5."""
     size = mdata['size']
 
-    if stim_channel_name:
-        fname_csv = pathlib.Path(str(basename_input) + '_Cycle00001_VoltageRecording_001').with_suffix('.csv')
-        df_voltage = pd.read_csv(fname_csv, index_col='Time(ms)', skipinitialspace=True)
-        logger.info('Read voltage recordings from: %s, preview:\n%s', fname_csv, df_voltage.head())
+    fname_csv = pathlib.Path(str(basename_input) + '_Cycle00001_VoltageRecording_001').with_suffix('.csv')
+    df_voltage = pd.read_csv(fname_csv, index_col='Time(ms)', skipinitialspace=True)
+    logger.info('Read voltage recordings from: %s, preview:\n%s', fname_csv, df_voltage.head())
+    fname_frame_start = dirname_output / 'frame_start.h5'
+    frame_start = artefacts.get_frame_start(df_voltage, fname_frame_start)
 
+    if stim_channel_name:
         fname_artefacts = dirname_output / 'artefact.h5'
-        df_artefacts = artefacts.get_bounds(df_voltage, size, stim_channel_name, fname_artefacts)
+        df_artefacts = artefacts.get_bounds(df_voltage, frame_start, size, stim_channel_name, fname_artefacts)
     else:
         df_artefacts = None
 
@@ -138,7 +140,7 @@ def backup(local_dirname, backup_dirname):
     if system == 'Windows':
         cmd = ['robocopy.exe', str(local_dirname), str(backup_dirname), '/S']  # '/S' means copy subfolders
     elif system == 'Linux':
-        os.makedirs(backup_dirname.parent)
+        os.makedirs(backup_dirname.parent, exist_ok=True)
         cmd = ['rsync', '-avh', str(local_dirname) + '/', str(backup_dirname)]
     else:
         raise BackupError('Do not recognize system: %s' % system)

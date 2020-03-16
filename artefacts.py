@@ -8,17 +8,22 @@ import pandas as pd
 logger = logging.getLogger(__file__)
 
 
-def get_bounds(df, size, stim_channel_name, fname):
+def get_frame_start(df_voltage, fname):
+    frame_start_cat = df_voltage['frame starts'].apply(lambda x: 1 if x > 1 else 0)
+    frame_start = frame_start_cat[frame_start_cat.diff() > 0.5].index
+    frame_start.to_series().to_hdf(fname, 'frame_start', mode='a')
+    logger.info('Stored calculated frame starts in %s, preview:\n%s', fname, frame_start[:5])
+    return frame_start
+
+
+def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname):
     """From a dataframe of experiment timings, return a dataframe of artefact locations in the data."""
     logger.info('Calculating artefact regions')
 
     shape = (size['frames'], size['z_planes'])
     y_px = size['y_px']
 
-    frame_start_cat = df['frame starts'].apply(lambda x: 1 if x > 1 else 0)
-    frame_start = frame_start_cat[frame_start_cat.diff() > 0.5].index
-
-    stim = df[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
+    stim = df_voltage[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
     stim_start = stim[stim.diff() > 0.5].index
     stim_stop = stim[stim.diff() < -0.5].index
 
@@ -53,7 +58,6 @@ def get_bounds(df, size, stim_channel_name, fname):
 
     stim_start.to_series().to_hdf(fname, 'stim_start', mode='a')
     stim_stop.to_series().to_hdf(fname, 'stim_stop', mode='a')
-    frame_start.to_series().to_hdf(fname, 'frame_start', mode='a')
 
     logger.info('Stored calculated artefact positions in %s, preview:\n%s', fname, df.head())
     return df
