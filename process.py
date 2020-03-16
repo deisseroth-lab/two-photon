@@ -1,11 +1,11 @@
 """Script for running the initial processing and backups for Bruker 2p data.
 
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --rip
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --backup_data
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --preprocess
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --run_suite2p
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --run_suite2p --prev_recording 20200310M88:regL23-000
-python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --remote_dirname=groups/deissero/users/drinnenb/Data2p --backup_output
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=groups/deissero/users/drinnenb/Data2p --rip
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=groups/deissero/users/drinnenb/Data2p --preprocess
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=groups/deissero/users/drinnenb/Data2p --run_suite2p
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=groups/deissero/users/drinnenb/Data2p --run_suite2p --prev_recording 20200310M88:regL23-000
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=groups/deissero/users/drinnenb/Data2p --backup_output
+python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=groups/deissero/users/drinnenb/Data2p --backup_data
 """
 
 import argparse
@@ -50,37 +50,47 @@ def main():
     dirname_output = args.output_dir / session_name / recording_name
     os.makedirs(dirname_output, exist_ok=True)
 
-    dirname_remote = '/'.join([args.remote_dirname, session_name, recording_name])
+    dirname_backup = args.backup_dir / session_name / recording_name
 
     setup_logging(dirname_output)
 
     if args.rip:
         rip.raw_to_tiff(dirname_input / recording_name, args.ripper)
 
+    mdata = metadata.read(basename_input, dirname_output)
+    stim_channel = mdata['channels'][STIM_CHANNEL_NUM]
+
+    try:
+        stim_channel_name = stim_channel['name']
+        stim_channel_enabled = stim_channel['enabled']
+        logger.info('Found stim channel "%s", enabled=%s', stim_channel_name, stim_channel_enabled)
+        if not stim_channel_enabled:
+            stim_channel_name = None
+    except KeyError:
+        stim_channel_name = None
+        logger.info('No stim channel found')
+
     if args.backup_data:
-        oak_sync(args.local_endpoint, dirname_input, args.remote_endpoint, dirname_remote + '/data',
-                 f'{session_name} {recording_name} raw data')
+        backup(dirname_input, dirname_backup / 'data')
 
-        slm_date = datetime.strptime(session_name[:8], '%Y%m%d').strftime('%d-%b-%Y')
-        slm_mouse = session_name[8:]
+        if stim_channel_name:
+            slm_date = datetime.strptime(session_name[:8], '%Y%m%d').strftime('%d-%b-%Y')
+            slm_mouse = session_name[8:]
 
-        slm_root = args.slm_setup_dir / slm_date
-        slm1 = slm_root / slm_mouse
-        slm2 = slm_root / ('*_' + slm_mouse + '_' + recording_name)
+            slm_root = args.slm_setup_dir / slm_date
+            slm_targets = slm_root / slm_mouse
+            slm_trial_order = slm_root / ('*_' + slm_mouse + '_' + recording_name)
 
-        # oak_sync(args.local_endpoint, slm1, args.remote_endpoint, dirname_remote + '/targets',
-        #          f'{session_name} {recording_name} SLM targets')
-        # oak_sync(args.local_endpoint, slm2, args.remote_endpoint, dirname_remote + '/trial_order',
-        #          f'{session_name} {recording_name} SLM trial')
+            backup(slm_targets, dirname_backup / 'targets')
+            backup(slm_trial_order, dirname_backup / 'trial_order')
 
     if args.preprocess or args.run_suite2p:
-        mdata = metadata.read(basename_input, dirname_output)
         # This needs to be kept in sync with prev_data format below.
         fname_data = dirname_output / 'data' / 'data.h5'
         if args.preprocess:
             os.makedirs(fname_data.parent, exist_ok=True)
             preprocess(basename_input, dirname_output, fname_data, mdata, args.artefact_buffer, args.artefact_shift,
-                       args.channel)
+                       args.channel, stim_channel_name)
         if args.run_suite2p:
             data_files = [fname_data]
             for prev_recording in args.prev_recording:
@@ -92,24 +102,14 @@ def main():
             run_suite2p(data_files, dirname_output, mdata)
 
     if args.backup_processing:
-        oak_sync(args.local_endpoint, dirname_output, args.remote_endpoint, dirname_remote / 'processing',
-                 f'{session_name} {recording_name} processed data')
+        backup(dirname_output, dirname_backup / 'processed')
 
 
-def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift, channel):
+def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift, channel, stim_channel_name):
     """Main method for running processing of TIFF files into HDF5."""
     size = mdata['size']
-    stim_channel = mdata['channels'][STIM_CHANNEL_NUM]
 
-    try:
-        stim_channel_name = stim_channel['name']
-        stim_channel_enabled = stim_channel['enabled']
-        logger.info('Found stim channel "%s", enabled=%s', stim_channel_name, stim_channel_enabled)
-    except KeyError:
-        stim_channel_enabled = False
-        logger.info('No stim channel found')
-
-    if stim_channel_enabled:
+    if stim_channel_name:
         fname_csv = pathlib.Path(str(basename_input) + '_Cycle00001_VoltageRecording_001').with_suffix('.csv')
         df_voltage = pd.read_csv(fname_csv, index_col='Time(ms)', skipinitialspace=True)
         logger.info('Read voltage recordings from: %s, preview:\n%s', fname_csv, df_voltage.head())
@@ -125,13 +125,9 @@ def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift,
     transform.convert(data, fname_data, df_artefacts, fname_uncorrected, shift, buffer)
 
 
-def oak_sync(local_endpoint, local_dirname, oak_endpoint, oak_dirname, label):
-    """Sync local data to OAK filesystem."""
-    if str(local_dirname)[1] == ':':
-        local_dirname = '/' + str(local_dirname).replace('\\', '/').replace(':', '')
-    local = f'{local_endpoint}:{local_dirname}'
-    remote = f'{oak_endpoint}:{oak_dirname}'
-    cmd = ['globus', 'transfer', local, remote, '--recursive', '--label', label]
+def backup(local_dirname, backup_dirname):
+    """Sync local data to backup directory."""
+    cmd = ['robocopy.exe', local_dirname, backup_dirname, '/S']  # '/S' means copy subfolders
     subprocess.run(cmd, check=True)
 
 
@@ -210,15 +206,7 @@ def parse_args():
 
     group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping) via Globus')
     group.add_argument('--backup_processing', action='store_true', help='Backup all output processing via Globus')
-    group.add_argument('--local_endpoint',
-                       type=str,
-                       default='ce898518-5c30-11ea-960a-0afc9e7dd773',
-                       help='Local globus endpoint id (default is B115_imaging).')
-    group.add_argument('--remote_endpoint',
-                       type=str,
-                       default='96a13ae8-1fb5-11e7-bc36-22000b9a448b',
-                       help='Remote globus endpoint id (default is SRCC Oak).')
-    group.add_argument('--remote_dirname', type=str, default='', help='Remote dirname to sync results to.')
+    group.add_argument('--backup_dir', type=pathlib.Path, default='', help='Remote dirname to sync results to.')
 
     args = parser.parse_args()
 
