@@ -139,12 +139,19 @@ def backup(local_dirname, backup_dirname):
     system = platform.system()
     if system == 'Windows':
         cmd = ['robocopy.exe', str(local_dirname), str(backup_dirname), '/S']  # '/S' means copy subfolders
+        expected_returncode = 1
     elif system == 'Linux':
         os.makedirs(backup_dirname.parent, exist_ok=True)
         cmd = ['rsync', '-avh', str(local_dirname) + '/', str(backup_dirname)]
+        expected_returncode = 0
     else:
         raise BackupError('Do not recognize system: %s' % system)
-    subprocess.run(cmd, check=True)
+
+    logger.info('Running backup from %s to %s', local_dirname, backup_dirname)
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    logger.info('Output from backup:\n%s', result.stdout.decode('utf-8'))
+    if result.returncode != expected_returncode:
+        raise BackupError('Backup failed for %s -> %s' % (local_dirname, backup_dirname))
 
 
 def run_suite2p(h5_list, dirname_output, mdata):
