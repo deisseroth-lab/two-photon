@@ -24,10 +24,28 @@ class RippingError(Exception):
 
 def raw_to_tiff(dirname, ripper):
     """Convert Bruker RAW files to TIFF files using ripping utility specified with `ripper`."""
-    fname = dirname / 'Cycle00001_Filelist.txt'
-    if not fname.exists():
-        raise RippingError('Input file list file is not present: %s' % fname)
-    logger.info('Ripping using file list: %s', fname)
+    def get_filelists():
+        return set(dirname.glob('*Filelist.txt'))
+
+    def get_rawdata():
+        return set(dirname.glob('*RAWDATA*'))
+
+    def get_tiffs():
+        return set(dirname.glob('*.ome.tif'))
+
+    filelists = get_filelists()
+    if not filelists:
+        raise RippingError('No *Filelist.txt files present in %s' % dirname)
+
+    rawdata = get_rawdata()
+    if not rawdata:
+        raise RippingError('No RAWDATA files present in %s' % dirname)
+
+    tiffs = get_tiffs()
+    if tiffs:
+        raise RippingError('Cannot rip because tiffs already exist in %s (%d found)' % (dirname, len(tiffs)))
+
+    logger.info('Ripping from:\n %s\n %s', '\n '.join(filelists), '\n '.join(rawdata))
 
     # Normally, the fname is passed to -AddRawFile.  But there is a bug in the software, so
     # we have to pop up one level and use -AddRawFileWithSubFolders.
@@ -64,24 +82,25 @@ def raw_to_tiff(dirname, ripper):
 
     # Wait for the file list and raw data to disappear
     remaining_sec = RIP_TOTAL_WAIT_SECS
-    last_output_tiffs = {}
+    last_tiffs = {}
     while remaining_sec >= 0:
         logging.info('Waiting for ripper to finish: %d seconds remaining', remaining_sec)
         remaining_sec -= RIP_POLL_SECS
         time.sleep(RIP_POLL_SECS)
 
-        fname_exists = os.path.exists(fname)
-        raw_exists = glob.glob(str(dirname / '*RAWDATA*'))
+        filelists = get_filelists()
+        rawdata = get_rawdata()
 
-        output_tiffs = set(glob.glob(str(dirname / '*.ome.tif')))
-        tiffs_changed = (last_output_tiffs == output_tiffs)
-        last_output_tiffs = output_tiffs
+        tiffs = get_tiffs()
+        tiffs_changed = (last_tiffs == tiffs)
+        last_tiffs = tiffs
 
-        if not fname_exists and not raw_exists and not tiffs_changed:
+        if not filelists and not rawdata and not tiffs_changed:
             logging.info('Detected ripping is complete')
-            time.sleep(RIP_EXTRA_WAIT_SECS)  # Wait an extra 30 seconds before terminating ripper, just to be safe.
+            time.sleep(RIP_EXTRA_WAIT_SECS)  # Wait before terminating ripper, just to be safe.
             logging.info('Killing ripper')
             process.kill()
+            logging.info('Ripper has been killed')
             return
 
     raise RippingError('Killed ripper because it did not finish within %s seconds' % RIP_TOTAL_WAIT_SECS)
