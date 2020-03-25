@@ -6,8 +6,9 @@
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --run_suite2p --prev_recording 20200310M88:regL23-000
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_output
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_data
+#
 
-import configargparse
+import argparse
 from datetime import datetime
 import logging
 import os
@@ -178,7 +179,7 @@ def run_suite2p(h5_list, dirname_output, mdata):
 
 def parse_args():
     """Gather command line arguments."""
-    parser = configargparse.ArgumentParser(description='Preprocess 2-photon raw data with suite2p')
+    parser = argparse.ArgumentParser(description='Preprocess 2-photon raw data with suite2p')
 
     group = parser.add_argument_group('Preprocessing arguments')
 
