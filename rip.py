@@ -45,7 +45,8 @@ def raw_to_tiff(dirname, ripper):
     if tiffs:
         raise RippingError('Cannot rip because tiffs already exist in %s (%d found)' % (dirname, len(tiffs)))
 
-    logger.info('Ripping from:\n %s\n %s', '\n '.join(filelists), '\n '.join(rawdata))
+    logger.info('Ripping from:\n %s\n %s', '\n '.join([str(f) for f in filelists]),
+                '\n '.join([str(f) for f in rawdata]))
 
     # Normally, the fname is passed to -AddRawFile.  But there is a bug in the software, so
     # we have to pop up one level and use -AddRawFileWithSubFolders.
