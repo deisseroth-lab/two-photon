@@ -93,8 +93,12 @@ def raw_to_tiff(dirname, ripper):
         rawdata = get_rawdata()
 
         tiffs = get_tiffs()
-        tiffs_changed = (last_tiffs == tiffs)
+        tiffs_changed = (last_tiffs != tiffs)
         last_tiffs = tiffs
+
+        logging.info('  Found filelist files: %s', filelists)
+        logging.info('  Found rawdata files: %s', rawdata)
+        logging.info('  Found this many tiff files: %s', len(tiffs))
 
         if not filelists and not rawdata and not tiffs_changed:
             logging.info('Detected ripping is complete')
