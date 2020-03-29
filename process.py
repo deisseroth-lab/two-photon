@@ -99,12 +99,13 @@ def main():
             preprocess(basename_input, dirname_output, fname_data, mdata, args.artefact_buffer, args.artefact_shift,
                        args.channel, stim_channel_name)
         if args.run_suite2p:
-            data_files = [fname_data]
+            data_files = []
             for prev_recording in args.prev_recording:
                 sn, rn = recording_split(prev_recording)
                 # This needs to be kept in sync with fname_data format above.
                 prev_data = args.output_dir / sn / rn / 'data' / 'data.h5'
                 data_files.append(prev_data)
+            data_files.append(fname_data)
 
             run_suite2p(data_files, dirname_output, mdata)
 
