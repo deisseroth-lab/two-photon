@@ -52,8 +52,8 @@ def main():
 
     # Locations for intput data to be read, output data to be written, and remote
     # data to by sync'd.
-    dirname_input = args.input_dir / session_name
-    basename_input = dirname_input / recording_name / recording_name  # The subdirectory and file prefix are `recording_name`
+    dirname_input = args.input_dir / session_name / recording_name
+    basename_input = dirname_input / recording_name  # The subdirectory and file prefix are `recording_name`
 
     dirname_output = args.output_dir / session_name / recording_name
     os.makedirs(dirname_output, exist_ok=True)
@@ -63,7 +63,7 @@ def main():
     setup_logging(dirname_output)
 
     if args.rip:
-        rip.raw_to_tiff(dirname_input / recording_name, args.ripper)
+        rip.raw_to_tiff(dirname_input, args.ripper)
 
     mdata = metadata.read(basename_input, dirname_output)
     stim_channel = mdata['channels'][STIM_CHANNEL_NUM]
