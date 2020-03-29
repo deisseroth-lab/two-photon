@@ -6,7 +6,9 @@
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --run_suite2p --prev_recording 20200310M88:regL23-000
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_output
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_data
-#
+# python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:VRmm-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess --run_suite2p --backup_output --backup_data
+# python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess --run_suite2p --prev_recording 202003M89:regL23-000
+# python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --rip --preprocess --run_suite2p --prev_recording 20200325M89:VRmm-000 --backup_output --backup_data
 
 import argparse
 from datetime import datetime
@@ -167,7 +169,7 @@ def run_suite2p(h5_list, dirname_output, mdata):
         'save_path0': str(dirname_output),
         'nplanes': z_planes,
         'fs': fs_param,
-        'sav_mat': True,
+        'save_mat': True,
         'bidi_corrected': True,
         'spatial_hp': 50,
         'sparse_mode': False,
