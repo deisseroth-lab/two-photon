@@ -178,7 +178,7 @@ def run_suite2p(h5_list, dirname_output, mdata):
     }
     logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in h5_list), params)
     with open(dirname_output / 'recording_order.json', 'w') as fout:
-        json.dump(h5_list, fout, indent=4)
+        json.dump([str(e) for e in h5_list], fout, indent=4)
     run_s2p.run_s2p(ops=default_ops, db=params)
 
 
