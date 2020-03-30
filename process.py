@@ -139,12 +139,12 @@ def backup(local_dirname, backup_dirname):
     """Sync local data to backup directory."""
     if os.path.exists(backup_dirname):
         raise BackupError('Cannot back up to already existing directory: %s' % backup_dirname)
+    os.makedirs(backup_dirname.parent, exist_ok=True)
     system = platform.system()
     if system == 'Windows':
         cmd = ['robocopy.exe', str(local_dirname), str(backup_dirname), '/S']  # '/S' means copy subfolders
         expected_returncode = 1
     elif system == 'Linux':
-        os.makedirs(backup_dirname.parent, exist_ok=True)
         cmd = ['rsync', '-avh', str(local_dirname) + '/', str(backup_dirname)]
         expected_returncode = 0
     else:
