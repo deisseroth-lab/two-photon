@@ -37,12 +37,22 @@ def read(basename_input, dirname_output):
         value = element.attrib['value']
         return type_fn(value)
 
-    num_sequences = len(mdata_root.findall('Sequence'))
-    num_frames_per_sequence = len(mdata_root.find('Sequence').findall('Frame'))
+    sequences = mdata_root.findall('Sequence')
+    num_sequences = len(sequences)
+
+    # Frames/sequence should be constant, except for perhaps the last frame.
+    num_frames_per_sequence = len(sequences[0].findall('Frame'))
+
     if num_sequences == 1:
         num_frames = num_frames_per_sequence
         num_z_planes = 1
     else:
+        # If the last sequence has a different number of frames, ignore it.
+        num_frames_last_sequence = sequences[-1].findall('Frame')
+        if num_frames_per_sequence != num_frames_last_sequence:
+            logging.warning('Skipping final stack because it was found with fewer z-planes (%d, expected: %d).',
+                            num_frames_last_sequence, num_frames_per_sequence)
+            num_sequences -= 1
         num_frames = num_sequences
         num_z_planes = num_frames_per_sequence
 
