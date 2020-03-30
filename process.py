@@ -153,15 +153,16 @@ def backup(local_location, backup_location):
     os.makedirs(backup_location.parent, exist_ok=True)
     system = platform.system()
     if system == 'Windows':
-        cmd = ['robocopy.exe', str(local_location), str(backup_location)]
         if os.path.isdir(local_location):
-            cmd.append('/S')  # '/S' means copy subfolders
+            cmd = ['robocopy.exe', str(local_location), str(backup_location), '/S']
+        else:
+            cmd = ['robocopy.exe', str(local_location), str(backup_location / local_location.name)]
         expected_returncode = 1
     elif system == 'Linux':
-        linux_local = str(local_location)
         if os.path.isdir(local_location):
-            linux_local += '/'
-        cmd = ['rsync', '-avh', linux_local, str(backup_location)]
+            cmd = ['rsync', '-avh', str(local_location) + '/', str(backup_location)]
+        else:
+            cmd = ['rsync', '-avh', str(local_location), str(backup_location / local_location.name)]
         expected_returncode = 0
     else:
         raise BackupError('Do not recognize system: %s' % system)
