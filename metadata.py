@@ -48,7 +48,7 @@ def read(basename_input, dirname_output):
         num_z_planes = 1
     else:
         # If the last sequence has a different number of frames, ignore it.
-        num_frames_last_sequence = sequences[-1].findall('Frame')
+        num_frames_last_sequence = len(sequences[-1].findall('Frame'))
         if num_frames_per_sequence != num_frames_last_sequence:
             logging.warning('Skipping final stack because it was found with fewer z-planes (%d, expected: %d).',
                             num_frames_last_sequence, num_frames_per_sequence)
