@@ -6,6 +6,7 @@
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --run_suite2p --prev_recording 20200310M88:regL23-000
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_output
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_data
+# python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_hdf5
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:VRmm-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess --run_suite2p --backup_output --backup_data
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess --run_suite2p --prev_recording 202003M89:regL23-000
 # python Documents\GitHub\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --rip --preprocess --run_suite2p --prev_recording 20200325M89:VRmm-000 --backup_output --backup_data
