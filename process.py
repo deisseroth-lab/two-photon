@@ -157,7 +157,8 @@ def backup(local_location, backup_location):
         if os.path.isdir(local_location):
             cmd = ['robocopy.exe', str(local_location), str(backup_location), '/S']
         else:
-            cmd = ['robocopy.exe', str(local_location), str(backup_location / local_location.name)]
+            # Single file copy done by giving source and dest directories, and specifying full filename.
+            cmd = ['robocopy.exe', str(local_location.parent), str(backup_location), local_location.name]
         expected_returncode = 1
     elif system == 'Linux':
         if os.path.isdir(local_location):
