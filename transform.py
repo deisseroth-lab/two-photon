@@ -31,6 +31,7 @@ def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None, artefac
         if df_artefacts is None:
             logger.info('Writing data to %s', fname_data)
             unlink(fname_data)
+            os.makedirs(fname_data.parent, exist_ok=True)
             data.to_hdf5(fname_data, HDF5_KEY)
         else:
             # This writes 2 hdf5 files, where the 2nd one depends on the same data being
@@ -39,11 +40,14 @@ def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None, artefac
             # read back to write the 2nd one.
             logger.info('Writing uncorrected data to %s', fname_uncorrected)
             unlink(fname_uncorrected)
+            os.makedirs(fname_uncorrected.parent, exist_ok=True)
             data.to_hdf5(fname_uncorrected, HDF5_KEY)
 
             logger.info('Writing corrected data to %s', fname_data)
             with h5py.File(fname_uncorrected, 'r') as hfile:
                 arr = da.from_array(hfile[HDF5_KEY])
+                # Depth of 1 in the first coordinate means to bring in the frames before and after
+                # the chunk -- needed for doing diffs.
                 depth = (1, 0, 0, 0)
                 data_corrected = arr.map_overlap(remove_artefacts,
                                                  depth=depth,
@@ -53,6 +57,7 @@ def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None, artefac
                                                  buffer=artefact_buffer,
                                                  mydepth=depth)
                 unlink(fname_data)
+                os.makedirs(fname_data.parent, exist_ok=True)
                 data_corrected.to_hdf5(fname_data, HDF5_KEY)
 
 

@@ -48,6 +48,9 @@ def main():
             raise ValueError('Recording should be SESSION:RECORDING.  Got %s' % recording)
         return pieces
 
+    def get_dirname_hdf5(sess_name, rec_name):
+        return args.output_dir / sess_name / rec_name / 'hdf5'
+
     session_name, recording_name = recording_split(args.recording)
 
     # Locations for intput data to be read, output data to be written, and remote
@@ -55,12 +58,16 @@ def main():
     dirname_input = args.input_dir / session_name / recording_name
     basename_input = dirname_input / recording_name  # The subdirectory and file prefix are `recording_name`
 
-    dirname_output = args.output_dir / session_name / recording_name
+    dirname_hdf5 = get_dirname_hdf5(session_name, recording_name)
+
+    dirname_output = args.output_dir / session_name / recording_name / 'output'
     os.makedirs(dirname_output, exist_ok=True)
 
     dirname_backup = args.backup_dir / session_name / recording_name
 
     setup_logging(dirname_output)
+
+    fname_csv = pathlib.Path(str(basename_input) + '_Cycle00001_VoltageRecording_001').with_suffix('.csv')
 
     if args.rip:
         rip.raw_to_tiff(dirname_input, args.ripper)
@@ -80,7 +87,6 @@ def main():
 
     if args.backup_data:
         backup(dirname_input, dirname_backup / 'data')
-
         if stim_channel_name:
             slm_date = datetime.strptime(session_name[:8], '%Y%m%d').strftime('%d-%b-%Y')
             slm_mouse = session_name[8:]
@@ -93,31 +99,40 @@ def main():
             backup(slm_trial_order, dirname_backup / 'trial_order')
 
     if args.preprocess or args.run_suite2p:
+        fname_uncorrected_hdf5 = dirname_hdf5 / 'uncorrected' / 'uncorrected.h5'
         # This needs to be kept in sync with prev_data format below.
-        fname_data = dirname_output / 'data' / 'data.h5'
+        # NOTE: The hdf5 file needs to be in its own directory with no other hdf5 files.  This is because
+        # Suite2p uses whole directories, not filenames, when searching for data.
+        fname_hdf5 = dirname_hdf5 / 'data' / 'data.h5'
         if args.preprocess:
-            os.makedirs(fname_data.parent, exist_ok=True)
-            preprocess(basename_input, dirname_output, fname_data, mdata, args.artefact_buffer, args.artefact_shift,
-                       args.channel, stim_channel_name)
+            preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected_hdf5, fname_hdf5, mdata,
+                       args.artefact_buffer, args.artefact_shift, args.channel, stim_channel_name)
         if args.run_suite2p:
             data_files = []
             for prev_recording in args.prev_recording:
                 sn, rn = recording_split(prev_recording)
                 # This needs to be kept in sync with fname_data format above.
-                prev_data = args.output_dir / sn / rn / 'data' / 'data.h5'
+                prev_data = get_dirname_hdf5(sn, rn) / 'data' / 'data.h5'
                 data_files.append(prev_data)
-            data_files.append(fname_data)
+            data_files.append(fname_hdf5)
             run_suite2p(data_files, dirname_output, mdata)
 
     if args.backup_output:
-        backup(dirname_output, dirname_backup / 'processed')
+        backup(dirname_output, dirname_backup / 'output')
+        # This csv file is part of the original data and backed up with --backup_data.
+        # It is also backed up here so that it can be immediately available with the rest of
+        # the output data, even if --backup_data is not used.
+        backup(fname_csv, dirname_backup / 'output')
+
+    if args.backup_hdf5:
+        backup(dirname_hdf5, dirname_backup / 'hdf5')
 
 
-def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift, channel, stim_channel_name):
+def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fname_data, mdata, buffer, shift, channel,
+               stim_channel_name):
     """Main method for running processing of TIFF files into HDF5."""
     size = mdata['size']
 
-    fname_csv = pathlib.Path(str(basename_input) + '_Cycle00001_VoltageRecording_001').with_suffix('.csv')
     df_voltage = pd.read_csv(fname_csv, index_col='Time(ms)', skipinitialspace=True)
     logger.info('Read voltage recordings from: %s, preview:\n%s', fname_csv, df_voltage.head())
     fname_frame_start = dirname_output / 'frame_start.h5'
@@ -130,34 +145,35 @@ def preprocess(basename_input, dirname_output, fname_data, mdata, buffer, shift,
         df_artefacts = None
 
     data = tiffdata.read(basename_input, size, mdata['layout'], channel)
-    fname_uncorrected = dirname_output / 'uncorrected.h5'
-
     transform.convert(data, fname_data, df_artefacts, fname_uncorrected, shift, buffer)
 
 
-def backup(local_dirname, backup_dirname):
+def backup(local_location, backup_location):
     """Sync local data to backup directory."""
-    if os.path.exists(backup_dirname):
-        raise BackupError('Cannot back up to already existing directory: %s' % backup_dirname)
-    os.makedirs(backup_dirname.parent, exist_ok=True)
+    os.makedirs(backup_location.parent, exist_ok=True)
     system = platform.system()
     if system == 'Windows':
-        cmd = ['robocopy.exe', str(local_dirname), str(backup_dirname), '/S']  # '/S' means copy subfolders
+        cmd = ['robocopy.exe', str(local_location), str(backup_location)]
+        if os.path.isdir(local_location):
+            cmd.append('/S')  # '/S' means copy subfolders
         expected_returncode = 1
     elif system == 'Linux':
-        cmd = ['rsync', '-avh', str(local_dirname) + '/', str(backup_dirname)]
+        linux_local = str(local_location)
+        if os.path.isdir(local_location):
+            linux_local += '/'
+        cmd = ['rsync', '-avh', linux_local, str(backup_location)]
         expected_returncode = 0
     else:
         raise BackupError('Do not recognize system: %s' % system)
 
-    logger.info('Running backup from %s to %s', local_dirname, backup_dirname)
+    logger.info('Running backup from %s to %s', local_location, backup_location)
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     logger.info('Output from backup:\n%s', result.stdout.decode('utf-8'))
     if result.returncode != expected_returncode:
-        raise BackupError('Backup failed for %s -> %s' % (local_dirname, backup_dirname))
+        raise BackupError('Backup failed for %s -> %s' % (local_location, backup_location))
 
 
-def run_suite2p(h5_list, dirname_output, mdata):
+def run_suite2p(hdf5_list, dirname_output, mdata):
     z_planes = mdata['size']['z_planes']
     fs_param = 1. / (mdata['period'] * z_planes)
 
@@ -166,7 +182,7 @@ def run_suite2p(h5_list, dirname_output, mdata):
     default_ops = run_s2p.default_ops()
     params = {
         'input_format': 'h5',
-        'data_path': [str(f.parent) for f in h5_list],
+        'data_path': [str(f.parent) for f in hdf5_list],
         'save_path0': str(dirname_output),
         'nplanes': z_planes,
         'fs': fs_param,
@@ -176,9 +192,9 @@ def run_suite2p(h5_list, dirname_output, mdata):
         'sparse_mode': False,
         'threshold_scaling': 3,
     }
-    logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in h5_list), params)
+    logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in hdf5_list), params)
     with open(dirname_output / 'recording_order.json', 'w') as fout:
-        json.dump([str(e) for e in h5_list], fout, indent=4)
+        json.dump([str(e) for e in hdf5_list], fout, indent=4)
     run_s2p.run_s2p(ops=default_ops, db=params)
 
 
@@ -228,8 +244,11 @@ def parse_args():
                        help='Rows to exclude surrounding calculated artefact')
     group.add_argument('--artefact_shift', type=int, default=2, help='Rows to shift artefact position from nominal.')
 
-    group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping) via Globus')
-    group.add_argument('--backup_output', action='store_true', help='Backup all output processing via Globus')
+    group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping)')
+    group.add_argument('--backup_hdf5',
+                       action='store_true',
+                       help='Backup hdf5 formatted data (with and without artefact removal)')
+    group.add_argument('--backup_output', action='store_true', help='Backup all output processing')
     group.add_argument('--backup_dir', type=pathlib.Path, default='', help='Remote dirname to sync results to.')
 
     args = parser.parse_args()
