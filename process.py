@@ -94,10 +94,10 @@ def main():
 
             slm_root = args.slm_setup_dir / slm_date
             slm_targets = slm_root / slm_mouse
-            slm_trial_order = slm_root / ('*_' + slm_mouse + '_' + recording_name)
+            slm_trial_order_pattern = '*_' + slm_mouse + '_' + recording_name
 
             backup(slm_targets, dirname_backup / 'targets')
-            backup(slm_trial_order, dirname_backup / 'trial_order')
+            backup_pattern(slm_root, slm_trial_order_pattern, dirname_backup / 'trial_order')
 
     if args.preprocess or args.run_suite2p:
         fname_uncorrected_hdf5 = dirname_hdf5 / 'uncorrected' / 'uncorrected.h5'
@@ -159,21 +159,42 @@ def backup(local_location, backup_location):
         else:
             # Single file copy done by giving source and dest directories, and specifying full filename.
             cmd = ['robocopy.exe', str(local_location.parent), str(backup_location), local_location.name]
-        expected_returncode = 1
+        expected_returncode = 1  # robocopy.exe gives exit code 1 for a successful copy.
     elif system == 'Linux':
         if os.path.isdir(local_location):
             cmd = ['rsync', '-avh', str(local_location) + '/', str(backup_location)]
         else:
             cmd = ['rsync', '-avh', str(local_location), str(backup_location / local_location.name)]
-        expected_returncode = 0
+        expected_returncode = 0  # Most programs give an exit code of 0 on success.
+    else:
+        raise BackupError('Do not recognize system: %s' % system)
+    run_cmd(cmd, expected_returncode)
+
+
+def backup_pattern(local_dir, local_pattern, backup_dir):
+    """Backup a filepattern to another directory.
+
+    Need special treatment, as robocopy.exe on Windows has a different command line than typicaly linux utilities.
+    """
+    system = platform.system()
+    if system == 'Linux':
+        backup(local_dir / local_pattern, backup_dir)
+    elif system == 'Windows':
+        os.makedirs(backup_dir, exist_ok=True)
+        cmd = ['robocopy.exe', str(local_dir), str(backup_dir), local_pattern, '/S']
+        expected_returncode = 1  # robocopy.exe gives exit code 1 for a successful copy.
+        run_cmd(cmd, expected_returncode)
     else:
         raise BackupError('Do not recognize system: %s' % system)
 
-    logger.info('Running backup from %s to %s', local_location, backup_location)
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    logger.info('Output from backup:\n%s', result.stdout.decode('utf-8'))
+
+def run_cmd(cmd, expected_returncode):
+    """Run a shell command via a subprocess."""
+    logger.info('Running command in subprocess:\n%s', cmd)
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)  # pylint: disable=subprocess-run-check
     if result.returncode != expected_returncode:
-        raise BackupError('Backup failed for %s -> %s' % (local_location, backup_location))
+        raise BackupError('Command failed!\n%s' % result.stdout.decode('utf-8'))
+    logger.info('Output:\n%s', result.stdout.decode('utf-8'))
 
 
 def run_suite2p(hdf5_list, dirname_output, mdata):
