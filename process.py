@@ -163,12 +163,14 @@ def backup(local_location, backup_location):
             cmd = ['robocopy.exe', str(local_location), str(backup_location), '/S']
         else:
             # Single file copy done by giving source and dest directories, and specifying full filename.
+            os.makedirs(backup_location, exist_ok=True)
             cmd = ['robocopy.exe', str(local_location.parent), str(backup_location), local_location.name]
         expected_returncode = 1  # robocopy.exe gives exit code 1 for a successful copy.
     elif system == 'Linux':
         if os.path.isdir(local_location):
             cmd = ['rsync', '-avh', str(local_location) + '/', str(backup_location)]
         else:
+            os.makedirs(backup_location, exist_ok=True)
             cmd = ['rsync', '-avh', str(local_location), str(backup_location / local_location.name)]
         expected_returncode = 0  # Most programs give an exit code of 0 on success.
     else:
