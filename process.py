@@ -87,7 +87,12 @@ def main():
         logger.info('No stim channel found')
 
     if args.backup_data:
-        backup(dirname_input, dirname_backup / 'data')
+        if args.zip_data:
+            fname_zipped_data = archive_dir(dirname_input)
+            backup(fname_zipped_data, dirname_backup)
+            os.remove(fname_zipped_data)
+        else:
+            backup(dirname_input, dirname_backup / 'data')
         if stim_channel_name:
             slm_date = datetime.strptime(session_name[:8], '%Y%m%d').strftime('%d-%b-%Y')
             slm_mouse = session_name[8:]
@@ -169,6 +174,15 @@ def backup(local_location, backup_location):
     else:
         raise BackupError('Do not recognize system: %s' % system)
     run_cmd(cmd, expected_returncode)
+
+
+def archive_dir(dirname):
+    """Use tar+gzip to zip directory contents into single, compressed file."""
+    fname_archive = dirname.with_suffix('.tgz')
+    # (c)reate archive as a (f)ile, use (z)ip compression,
+    cmd = ['tar', 'cfz', fname_archive, dirname]
+    run_cmd(cmd, expected_returncode=0)
+    return fname_archive
 
 
 def backup_pattern(local_dir, local_pattern, backup_dir):
@@ -274,6 +288,11 @@ def parse_args():
                        help='Backup hdf5 formatted data (with and without artefact removal)')
     group.add_argument('--backup_output', action='store_true', help='Backup all output processing')
     group.add_argument('--backup_dir', type=pathlib.Path, default='', help='Remote dirname to sync results to.')
+
+    # Temporary argument for testing.  If it works, leave it on by default and remove flag.
+    group.add_argument('--zip_data',
+                       action='store_true',
+                       help='Compress data directory (mostly TIFF files) into a single file for backup')
 
     args = parser.parse_args()
 
