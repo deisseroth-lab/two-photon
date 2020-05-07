@@ -182,7 +182,7 @@ def archive_dir(dirname):
     """Use tar+gzip to zip directory contents into single, compressed file."""
     fname_archive = dirname.with_suffix('.tgz')
     # (c)reate archive as a (f)ile, use (z)ip compression,
-    cmd = ['tar', 'cfz', fname_archive, dirname]
+    cmd = ['tar', 'cfz', str(fname_archive), str(dirname)]
     run_cmd(cmd, expected_returncode=0)
     return fname_archive
 
