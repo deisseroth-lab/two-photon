@@ -183,7 +183,8 @@ def archive_dir(dirname):
     fname_archive = dirname.with_suffix('.tgz')
     # (c)reate archive as a (f)ile, use (z)ip compression,
     cmd = ['tar', 'cfz', str(fname_archive), str(dirname)]
-    run_cmd(cmd, expected_returncode=0)
+    shell = (platform.system() == 'Windows')  # On Windows, use of shell built-ins requires shell=True
+    run_cmd(cmd, expected_returncode=0, shell=shell)
     return fname_archive
 
 
@@ -204,10 +205,10 @@ def backup_pattern(local_dir, local_pattern, backup_dir):
         raise BackupError('Do not recognize system: %s' % system)
 
 
-def run_cmd(cmd, expected_returncode):
+def run_cmd(cmd, expected_returncode, shell=False):
     """Run a shell command via a subprocess."""
     logger.info('Running command in subprocess:\n%s', cmd)
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)  # pylint: disable=subprocess-run-check
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=shell)  # pylint: disable=subprocess-run-check
     if result.returncode != expected_returncode:
         raise BackupError('Command failed!\n%s' % result.stdout.decode('utf-8'))
     logger.info('Output:\n%s', result.stdout.decode('utf-8'))
