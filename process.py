@@ -181,12 +181,19 @@ def backup(local_location, backup_location):
 def archive_dir(dirname):
     """Use tar+gzip to zip directory contents into single, compressed file."""
     fname_archive = dirname.with_suffix('.tgz')
-    # (c)reate archive as a (f)ile, use (z)ip compression,
-    cmd = ['tar', 'cfz', str(fname_archive), str(dirname)]
-    shell = (platform.system() == 'Windows')  # On Windows, use of shell built-ins requires shell=True
-    run_cmd(cmd, expected_returncode=0, shell=shell)
-    return fname_archive
-
+    system = platform.system()
+    if system == 'Linux':
+        # (c)reate archive as a (f)ile, use (z)ip compression
+        cmd = ['tar', 'cfz', str(fname_archive), str(dirname)]
+        run_cmd(cmd, expected_returncode=0)
+    elif system == 'Windows':
+        # Using 7z to mimic 'tar cfz' as per this post:
+        # https://superuser.com/questions/244703/how-can-i-run-the-tar-czf-command-in-windows
+        cmd = f'7z -ttar a dummy {dirname}\* -so | 7z -si -tgzip a {fname_archive}'
+        run_cmd(cmd, expected_returncode=0, shell=True)
+    else:
+        raise BackupError('Do not recognize system: %s' % system)
+        
 
 def backup_pattern(local_dir, local_pattern, backup_dir):
     """Backup a filepattern to another directory.
