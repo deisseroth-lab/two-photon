@@ -193,6 +193,7 @@ def archive_dir(dirname):
         run_cmd(cmd, expected_returncode=0, shell=True)
     else:
         raise BackupError('Do not recognize system: %s' % system)
+    return fname_archive
         
 
 def backup_pattern(local_dir, local_pattern, backup_dir):
