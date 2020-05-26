@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 import pandas as pd
-
+import pdb
 logger = logging.getLogger(__file__)
 
 
@@ -21,11 +21,14 @@ def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname):
     logger.info('Calculating artefact regions')
 
     shape = (size['frames'], size['z_planes'])
+    n_frames = shape[0] * shape[1]
+    frame_start = frame_start[0:n_frames]
     y_px = size['y_px']
 
     stim = df_voltage[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
     stim_start = stim[stim.diff() > 0.5].index
     stim_stop = stim[stim.diff() < -0.5].index
+    #pdb.set_trace()
 
     ix_start, y_off_start = get_loc(stim_start, frame_start, y_px, shape)
     ix_stop, y_off_stop = get_loc(stim_stop, frame_start, y_px, shape)
@@ -65,7 +68,9 @@ def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname):
 
 def get_loc(times, frame_start, y_px, shape):
     """Determine the location of event times within the data, given the frame start times."""
-    interp = np.interp(times, frame_start, range(len(frame_start)))
+    #pdb.set_trace()
+    v_idx = times < frame_start.max()
+    interp = np.interp(times[v_idx], frame_start, range(len(frame_start)))
     indices = interp.astype(np.int)
     y_offset = y_px * (interp - indices)
     return np.transpose(np.unravel_index(indices, shape)), y_offset
