@@ -1,0 +1,25 @@
+BootStrap: docker
+From: ubuntu:20.04
+
+%files
+   # Needed to rename utility to avoid spaces
+   # https://github.com/hpcng/singularity/issues/5437
+   /tmp/Image-Block-Ripping-Utility.exe /usr/local/bin
+
+%post
+    dpkg --add-architecture i386
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt install -y wine32 wine64 winetricks
+    winecfg  # Setup wine
+    winetricks -q vcrun2015
+
+%environment
+    export LC_ALL=C
+    export PATH=/usr/local/bin:$PATH
+
+%runscript
+    ls /usr/local/bin
+
+%labels
+    Author Tyler Benster
+    Author Chris Roat
