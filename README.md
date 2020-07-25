@@ -20,3 +20,87 @@ conda activate two-photon
 
 See the comments at the top of the [preprocess script](https://github.com/deisseroth-lab/two-photon/blob/master/process.py)
 for examples of how to run the processing.
+
+## Docker
+
+```bash
+docker build -t two-photon .
+```
+
+
+With X11 forwarding:
+
+```bash
+./docker-wine/docker-wine \
+    --home-volume=${HOME} \
+    --local=two-photon \
+    wine '/Prairie View/Utilities/Image-Block Ripping Utility.exe'
+```
+
+With no GUI:
+
+```bash
+./docker-wine/docker-wine \
+    --xvfb \
+    --home-volume=${HOME} \
+    --local=two-photon \
+    wine '/Prairie View/Utilities/Image-Block Ripping Utility.exe'
+```
+
+## Singularity
+
+The following singularity commands are adapted from the equivalent docker commands that 
+`docker-wine` runs.
+
+
+To build the Singularity container, build the Docker container first and then convert:
+
+```bash
+docker build -t two-photon .
+singularity build two-photon.sif docker-daemon://two-photon:latest
+```
+
+With X11 forwarding (needs Xkey, which is automatically created when using `docker-wine` above):
+
+```bash
+singularity exec \
+    --env=USER_NAME=${USER} \
+    --env=USER_UID=1001 \
+    --env=USER_GID=1001 \
+    --env=USER_HOME=${HOME} \
+    --bind=${HOME}/.docker-wine.Xkey:/root/.Xkey:ro \
+    --bind=/tmp/pulse-socket:/tmp/pulse-socket \
+    --bind=/tmp/.X11-unix:/tmp/.X11-unix:ro \
+    --hostname="$(hostname)" \
+    --bind=${HOME}:${HOME} \
+    --workdir=${HOME} \
+    --env=TZ=America/Los_Angeles \
+    two-photon.sif \
+    wine '/Prairie View/Utilities/Image-Block Ripping Utility.exe'
+```
+
+With no GUI is work-in-progress.  The following fails with 
+
+```
+002a:err:winediag:nodrv_CreateWindow Application tried to create a window, but no driver could be loaded.
+002a:err:winediag:nodrv_CreateWindow Make sure that your X server is running and that $DISPLAY is set correctly.
+```
+
+```bash
+singularity exec \
+    --env=USER_NAME=${USER} \
+    --env=USER_UID=1001 \
+    --env=USER_GID=1001 \
+    --env=USER_HOME=${HOME} \
+    --env=USE_XVFB=yes \
+    --env=XVFB_SERVER=:95 \
+    --env=XVFB_SCREEN=0 \
+    --env=XVFB_RESOLUTION=320x240x8 \
+    --env=DISPLAY=:95 \
+    --hostname="$(hostname)" \
+    --bind=${HOME}:${HOME} \
+    --workdir=${HOME} \
+    --env=TZ=America/Los_Angeles \
+    two-photon.sif \
+    wine '/Prairie View/Utilities/Image-Block Ripping Utility.exe'
+```
