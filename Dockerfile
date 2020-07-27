@@ -2,6 +2,12 @@ FROM scottyhardy/docker-wine:stable-5.0.1-nordp
 
 LABEL maintainer="Chris Roat <croat@stanford.edu>"
 
+# https://github.com/Winetricks/winetricks/issues/934#issuecomment-364905864
+RUN set -xe	&& \
+    WINEDLLOVERRIDES="mscoree,mshtml=" xvfb-run wine wineboot && \
+    xvfb-run wineserver -w && \
+    xvfb-run winetricks -q vcrun2015
+
 ENV PATH /opt/conda/bin:$PATH
 
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
