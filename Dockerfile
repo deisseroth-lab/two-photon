@@ -2,11 +2,9 @@ FROM scottyhardy/docker-wine:stable-5.0.1-nordp
 
 LABEL maintainer="Chris Roat <croat@stanford.edu>"
 
-# https://github.com/Winetricks/winetricks/issues/934#issuecomment-364905864
-RUN set -xe	&& \
-    WINEDLLOVERRIDES="mscoree,mshtml=" xvfb-run wine wineboot && \
-    xvfb-run wineserver -w && \
-    xvfb-run winetricks -q vcrun2015
+RUN xvfb-run winetricks -q vcrun2015
+
+COPY ["Prairie View/", "/Prairie View/"]
 
 ENV PATH /opt/conda/bin:$PATH
 
@@ -17,8 +15,6 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
     ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
     echo "conda activate base" >> ~/.bashrc
-
-COPY ["Prairie View/", "/Prairie View/"]
 
 COPY environment.yml .
 RUN conda env update --quiet --name base --file environment.yml \

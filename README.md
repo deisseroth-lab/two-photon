@@ -23,35 +23,37 @@ for examples of how to run the processing.
 
 ## Docker
 
+To build the docker container and tag it as `two-photon:latest`, use:
+
 ```bash
 docker build -t two-photon .
 ```
 
+Run the ripper using the command like the following (remove `--xvfb` to launch the GUI).  Substitute your own
+data directory in both the --volume flag and the `-AddRawFileWithSubFolders`/`-SetOutputDirectory` flags.  
 
-With X11 forwarding:
-
-```bash
-./docker-wine/docker-wine \
-    --home-volume=${HOME} \
-    --local=two-photon \
-    wine '/Prairie View/Utilities/Image-Block Ripping Utility.exe'
-```
-
-With no GUI:
+Note that the exectuable will not stop on its own, and needs to be killed with `docker container stop wine` once
+the data is processed.
 
 ```bash
 ./docker-wine/docker-wine \
     --xvfb \
+    --volume=/media/hdd0:/media/hdd0 \
     --home-volume=${HOME} \
     --local=two-photon \
-    wine '/Prairie View/Utilities/Image-Block Ripping Utility.exe'
+    wine '/Prairie View/Utilities/Image-Block Ripping Utility.exe' \
+    -IncludeSubFolders \
+    -AddRawFileWithSubFolders \
+    /media/hdd0/two-photon/sample/overview-023 \
+    -SetOutputDirectory \
+    /media/hdd0/two-photon/sample/overview-023 \
+    -Convert 
 ```
 
 ## Singularity
 
 The following singularity commands are adapted from the equivalent docker commands that 
 `docker-wine` runs.
-
 
 To build the Singularity container, build the Docker container first and then convert:
 
