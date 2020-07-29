@@ -5,6 +5,7 @@ import glob
 import logging
 import os
 import pathlib
+import platform
 import subprocess
 import time
 
@@ -47,10 +48,16 @@ def raw_to_tiff(dirname, ripper):
 
     logger.info('Ripping from:\n %s\n %s', '\n '.join([str(f) for f in filelists]),
                 '\n '.join([str(f) for f in rawdata]))
+    
+    system = platform.system()
+    if system == 'Linux':
+        cmd = ['wine']
+    else:
+        cmd = []
 
     # Normally, the fname is passed to -AddRawFile.  But there is a bug in the software, so
     # we have to pop up one level and use -AddRawFileWithSubFolders.
-    cmd = [
+    cmd += [
         ripper,
         '-IncludeSubFolders',
         '-AddRawFileWithSubFolders',

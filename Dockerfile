@@ -24,4 +24,7 @@ RUN conda env update --quiet --name base --file environment.yml \
 # Copy code last to avoid busting the cache.
 COPY *.py /app/
 
+# Use this once its understood how to convert to singularity and mimic same behavior.
+# ENTRYPOINT ["/usr/bin/entrypoint", "python", "/app/process.py", "--ripper", "/Prairie View/Utilities/Image-Block Ripping Utility.exe"]
+
 ENTRYPOINT ["/usr/bin/entrypoint"]
