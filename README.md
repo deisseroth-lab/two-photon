@@ -105,7 +105,7 @@ singularity exec \
     --env=USER_NAME=${USER} \
     --env=USER_UID=$(id -u) \
     --env=USER_GID=$(id -g) \
-    --env=USER_HOME=${HOME} \ 
+    --env=USER_HOME=${HOME} \
     --volume=${HOME}/.docker-wine.Xkey:/root/.Xkey:ro \
     --volume=/tmp/pulse-socket:/tmp/pulse-socket \
     --env=DISPLAY=${DISPLAY} \
