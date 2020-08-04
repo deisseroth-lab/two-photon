@@ -106,12 +106,12 @@ singularity exec \
     --env=USER_UID=$(id -u) \
     --env=USER_GID=$(id -g) \
     --env=USER_HOME=${HOME} \
-    --volume=${HOME}/.docker-wine.Xkey:/root/.Xkey:ro \
-    --volume=/tmp/pulse-socket:/tmp/pulse-socket \
+    --bind=${HOME}/.docker-wine.Xkey:/root/.Xkey:ro \
+    --bind=/tmp/pulse-socket:/tmp/pulse-socket \
     --env=DISPLAY=${DISPLAY} \
-    --volume=/tmp/.X11-unix:/tmp/.X11-unix:ro \
+    --bind=/tmp/.X11-unix:/tmp/.X11-unix:ro \
     --hostname=hoosierdaddy \
-    --volume=${HOME}:${HOME} \
+    --bind=${HOME}:${HOME} \
     --workdir=${HOME} \
     --env=TZ=America/Los_Angeles two-photon:latest \
     two-photon.sif \
