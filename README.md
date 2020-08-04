@@ -114,7 +114,7 @@ singularity exec \
     --volume=${HOME}:${HOME} \
     --workdir=${HOME} \
     --env=TZ=America/Los_Angeles two-photon:latest \
-    two-photon.sif \ 
+    two-photon.sif \
     python \
     /app/process.py \
     --ripper='/Prairie View/Utilities/Image-Block Ripping Utility.exe' \
