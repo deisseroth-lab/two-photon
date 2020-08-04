@@ -113,7 +113,7 @@ singularity exec \
     --hostname=hoosierdaddy \
     --bind=${HOME}:${HOME} \
     --workdir=${HOME} \
-    --env=TZ=America/Los_Angeles two-photon:latest \
+    --env=TZ=America/Los_Angeles \
     two-photon.sif \
     python \
     /app/process.py \
