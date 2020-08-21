@@ -53,21 +53,26 @@ def get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
     y_px_stop = []
     for (ix_start_cyc, ix_start_z), (ix_stop_cyc, ix_stop_z), y_min, y_max in zip(ix_start, ix_stop, y_off_start,
                                                                                   y_off_stop):
+        y_min = max(y_min, 0)  # Negative y_min indicates stim started during settling time.
         if (ix_start_cyc == ix_stop_cyc) and (ix_start_z == ix_stop_z):
+            if y_max <= 0:  # If a single-frame stim stops during setting time, skip it.
+                continue
             frame.append(ix_start_cyc)
             z_plane.append(ix_start_z)
             y_px_start.append(y_min)
             y_px_stop.append(y_max)
-        else:
+        else:  # Stim spans two planes.
             frame.append(ix_start_cyc)
             z_plane.append(ix_start_z)
             y_px_start.append(y_min)
             y_px_stop.append(y_px)
 
-            frame.append(ix_stop_cyc)
-            z_plane.append(ix_stop_z)
-            y_px_start.append(0)
-            y_px_stop.append(y_max)
+            # For two-plane stim, the last frame is skipped if stim finishes during settling.
+            if y_max > 0:
+                frame.append(ix_stop_cyc)
+                z_plane.append(ix_stop_z)
+                y_px_start.append(0)
+                y_px_stop.append(y_max)
     return frame, z_plane, y_px_start, y_px_stop
 
 
