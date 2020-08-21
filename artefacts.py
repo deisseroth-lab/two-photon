@@ -28,10 +28,24 @@ def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname):
     stim = df_voltage[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
     stim_start = stim[stim.diff() > 0.5].index
     stim_stop = stim[stim.diff() < -0.5].index
-    #pdb.set_trace()
 
+    frame, z_plane, y_px_start, y_px_stop = get_start_stop(stim_start, stim_stop, frame_start, y_px, shape)
+
+    df = pd.DataFrame({'frame': frame, 'z_plane': z_plane, 'y_min': y_px_start, 'y_max': y_px_stop})
+    df = df.set_index('frame')
+    df.to_hdf(fname, 'data', mode='w')
+
+    stim_start.to_series().to_hdf(fname, 'stim_start', mode='a')
+    stim_stop.to_series().to_hdf(fname, 'stim_stop', mode='a')
+
+    logger.info('Stored calculated artefact positions in %s, preview:\n%s', fname, df.head())
+    return df
+
+def get_start_stop(stim_start, stim_stop, frame_start, y_px, shape):
     ix_start, y_off_start = get_loc(stim_start, frame_start, y_px, shape)
+    y_off_start = np.floor(y_off_start).astype(np.int)
     ix_stop, y_off_stop = get_loc(stim_stop, frame_start, y_px, shape)
+    y_off_stop = np.ceil(y_off_stop).astype(np.int)
 
     frame = []
     z_plane = []
@@ -54,23 +68,14 @@ def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname):
             z_plane.append(ix_stop_z)
             y_px_start.append(0)
             y_px_stop.append(y_max)
-
-    df = pd.DataFrame({'frame': frame, 'z_plane': z_plane, 'y_min': y_px_start, 'y_max': y_px_stop})
-    df = df.set_index('frame')
-    df.to_hdf(fname, 'data', mode='w')
-
-    stim_start.to_series().to_hdf(fname, 'stim_start', mode='a')
-    stim_stop.to_series().to_hdf(fname, 'stim_stop', mode='a')
-
-    logger.info('Stored calculated artefact positions in %s, preview:\n%s', fname, df.head())
-    return df
+    return frame, z_plane, y_px_start, y_px_stop
 
 
 def get_loc(times, frame_start, y_px, shape):
     """Determine the location of event times within the data, given the frame start times."""
-    #pdb.set_trace()
     v_idx = times < frame_start.max()
     interp = np.interp(times[v_idx], frame_start, range(len(frame_start)))
     indices = interp.astype(np.int)
+    idx = np.transpose(np.unravel_index(indices, shape))
     y_offset = y_px * (interp - indices)
-    return np.transpose(np.unravel_index(indices, shape)), y_offset
+    return idx, y_offset
