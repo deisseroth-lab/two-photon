@@ -16,7 +16,7 @@ def get_frame_start(df_voltage, fname):
     return frame_start
 
 
-def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname):
+def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname, settle_time):
     """From a dataframe of experiment timings, return a dataframe of artefact locations in the data."""
     logger.info('Calculating artefact regions')
 
@@ -29,7 +29,7 @@ def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname):
     stim_start = stim[stim.diff() > 0.5].index
     stim_stop = stim[stim.diff() < -0.5].index
 
-    frame, z_plane, y_px_start, y_px_stop = get_start_stop(stim_start, stim_stop, frame_start, y_px, shape)
+    frame, z_plane, y_px_start, y_px_stop = get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
 
     df = pd.DataFrame({'frame': frame, 'z_plane': z_plane, 'y_min': y_px_start, 'y_max': y_px_stop})
     df = df.set_index('frame')
@@ -41,10 +41,10 @@ def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname):
     logger.info('Stored calculated artefact positions in %s, preview:\n%s', fname, df.head())
     return df
 
-def get_start_stop(stim_start, stim_stop, frame_start, y_px, shape):
-    ix_start, y_off_start = get_loc(stim_start, frame_start, y_px, shape)
+def get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time):
+    ix_start, y_off_start = get_loc(stim_start, frame_start, y_px, shape, settle_time)
     y_off_start = np.floor(y_off_start).astype(np.int)
-    ix_stop, y_off_stop = get_loc(stim_stop, frame_start, y_px, shape)
+    ix_stop, y_off_stop = get_loc(stim_stop, frame_start, y_px, shape, settle_time)
     y_off_stop = np.ceil(y_off_stop).astype(np.int)
 
     frame = []
@@ -71,11 +71,17 @@ def get_start_stop(stim_start, stim_stop, frame_start, y_px, shape):
     return frame, z_plane, y_px_start, y_px_stop
 
 
-def get_loc(times, frame_start, y_px, shape):
+def get_loc(times, frame_start, y_px, shape, settle_time):
     """Determine the location of event times within the data, given the frame start times."""
     v_idx = times < frame_start.max()
     interp = np.interp(times[v_idx], frame_start, range(len(frame_start)))
     indices = interp.astype(np.int)
     idx = np.transpose(np.unravel_index(indices, shape))
-    y_offset = y_px * (interp - indices)
+
+    frame_times = (frame_start[1:] - frame_start[:-1])
+    offset = (interp - indices) * frame_times - settle_time
+    
+    acquisition_times = frame_times - settle_time
+    y_offset = y_px * offset / acquisition_times
+    
     return idx, y_offset

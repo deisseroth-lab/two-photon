@@ -112,7 +112,7 @@ def main():
         fname_hdf5 = dirname_hdf5 / 'data' / 'data.h5'
         if args.preprocess:
             preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected_hdf5, fname_hdf5, mdata,
-                       args.artefact_buffer, args.artefact_shift, args.channel, stim_channel_name)
+                       args.artefact_buffer, args.artefact_shift, args.channel, stim_channel_name, args.settle_time)
         if args.run_suite2p:
             data_files = []
             for prev_recording in args.prev_recording:
@@ -135,7 +135,7 @@ def main():
 
 
 def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fname_data, mdata, buffer, shift, channel,
-               stim_channel_name):
+               stim_channel_name, settle_time):
     """Main method for running processing of TIFF files into HDF5."""
     size = mdata['size']
 
@@ -146,7 +146,7 @@ def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fna
 
     if stim_channel_name:
         fname_artefacts = dirname_output / 'artefact.h5'
-        df_artefacts = artefacts.get_bounds(df_voltage, frame_start, size, stim_channel_name, fname_artefacts)
+        df_artefacts = artefacts.get_bounds(df_voltage, frame_start, size, stim_channel_name, fname_artefacts, settle_time)
     else:
         df_artefacts = None
 
@@ -287,6 +287,8 @@ def parse_args():
                              'See --recording for format.'))
 
     group.add_argument('--channel', type=int, default=3, help='Microscrope channel containing the two-photon data')
+    group.add_argument('--settle_time', type=float, default=0, 
+                       help='Amount of time at the beginning of an aquisition window to ignore while the hardware is settling.')
     group.add_argument('--artefact_buffer',
                        type=int,
                        default=18,
