@@ -9,9 +9,10 @@ def test_get_start_stop():
     y_px = 200
     shape = (3, 1)
     settle_time = 0
-    
-    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
-    
+
+    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape,
+                                                                     settle_time)
+
     np.testing.assert_equal(frame, [1])
     np.testing.assert_equal(z_plane, [0])
     np.testing.assert_equal(y_px_start, [120])
@@ -25,15 +26,16 @@ def test_get_start_stop_settle():
     y_px = 200
     shape = (3, 1)
     settle_time = 5
-    
-    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
-    
+
+    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape,
+                                                                     settle_time)
+
     np.testing.assert_equal(frame, [1])
     np.testing.assert_equal(z_plane, [0])
     np.testing.assert_equal(y_px_start, [100])
     np.testing.assert_equal(y_px_stop, [150])
-    
-    
+
+
 def test_get_start_stop_two_frame():
     stim_start = np.array([15.])
     stim_stop = np.array([45.])
@@ -41,13 +43,15 @@ def test_get_start_stop_two_frame():
     y_px = 200
     shape = (2, 2)
     settle_time = 0
-    
-    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
-    
+
+    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape,
+                                                                     settle_time)
+
     np.testing.assert_equal(frame, [0, 0])
     np.testing.assert_equal(z_plane, [0, 1])
     np.testing.assert_equal(y_px_start, [120, 0])
     np.testing.assert_equal(y_px_stop, [200, 160])
+
 
 def test_get_start_stop_two_frame_settle():
     stim_start = np.array([15.])
@@ -56,9 +60,10 @@ def test_get_start_stop_two_frame_settle():
     y_px = 200
     shape = (2, 2)
     settle_time = 5
-    
-    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
-    
+
+    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape,
+                                                                     settle_time)
+
     np.testing.assert_equal(frame, [0, 0])
     np.testing.assert_equal(z_plane, [0, 1])
     np.testing.assert_equal(y_px_start, [100, 0])
@@ -72,13 +77,15 @@ def test_get_start_stop_two_frame_settle_no_second_frame():
     y_px = 200
     shape = (2, 2)
     settle_time = 5
-    
-    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
-    
+
+    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape,
+                                                                     settle_time)
+
     np.testing.assert_equal(frame, [0])
     np.testing.assert_equal(z_plane, [0])
     np.testing.assert_equal(y_px_start, [100])
     np.testing.assert_equal(y_px_stop, [200])
+
 
 def test_get_start_stop_two_frame_settle_no_frames():
     stim_start = np.array([50.])
@@ -87,13 +94,15 @@ def test_get_start_stop_two_frame_settle_no_frames():
     y_px = 200
     shape = (2, 2)
     settle_time = 5
-    
-    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
-    
+
+    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape,
+                                                                     settle_time)
+
     np.testing.assert_equal(frame, [])
     np.testing.assert_equal(z_plane, [])
     np.testing.assert_equal(y_px_start, [])
     np.testing.assert_equal(y_px_stop, [])
+
 
 def test_get_start_stop_multiple_stims():
     stim_start = np.array([40., 160.])
@@ -102,9 +111,10 @@ def test_get_start_stop_multiple_stims():
     y_px = 200
     shape = (4, 2)
     settle_time = 0
-    
-    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
-    
+
+    frame, z_plane, y_px_start, y_px_stop = artefacts.get_start_stop(stim_start, stim_stop, frame_start, y_px, shape,
+                                                                     settle_time)
+
     np.testing.assert_equal(frame, [0, 3])
     np.testing.assert_equal(z_plane, [1, 0])
     np.testing.assert_equal(y_px_start, [120, 80])

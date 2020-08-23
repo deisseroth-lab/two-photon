@@ -41,6 +41,7 @@ def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname, settle_t
     logger.info('Stored calculated artefact positions in %s, preview:\n%s', fname, df.head())
     return df
 
+
 def get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time):
     ix_start, y_off_start = get_loc(stim_start, frame_start, y_px, shape, settle_time)
     y_off_start = np.floor(y_off_start).astype(np.int)
@@ -85,9 +86,9 @@ def get_loc(times, frame_start, y_px, shape, settle_time):
 
     frame_times = (frame_start[1:] - frame_start[:-1])
     frame_times_stims = frame_times[indices]
-    
+
     offset = (interp - indices) * frame_times_stims - settle_time
     acquisition_times = frame_times_stims - settle_time
     y_offset = y_px * offset / acquisition_times
-    
+
     return idx, y_offset
