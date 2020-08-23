@@ -146,13 +146,13 @@ def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fna
 
     if stim_channel_name:
         fname_artefacts = dirname_output / 'artefact.h5'
-        df_artefacts = artefacts.get_bounds(df_voltage, frame_start, size, stim_channel_name, fname_artefacts,
-                                            settle_time)
+        df_artefacts = artefacts.get_bounds(df_voltage, frame_start, size, stim_channel_name, fname_artefacts, buffer,
+                                            shift, settle_time)
     else:
         df_artefacts = None
 
     data = tiffdata.read(basename_input, size, mdata['layout'], channel)
-    transform.convert(data, fname_data, df_artefacts, fname_uncorrected, shift, buffer)
+    transform.convert(data, fname_data, df_artefacts, fname_uncorrected)
 
 
 def backup(local_location, backup_location):
@@ -293,11 +293,8 @@ def parse_args():
         type=float,
         default=0,
         help='Amount of time at the beginning of an aquisition window to ignore while the hardware is settling.')
-    group.add_argument('--artefact_buffer',
-                       type=int,
-                       default=18,
-                       help='Rows to exclude surrounding calculated artefact')
-    group.add_argument('--artefact_shift', type=int, default=2, help='Rows to shift artefact position from nominal.')
+    group.add_argument('--artefact_buffer', type=float, default=0, help='Time to exclude following calculated artefact')
+    group.add_argument('--artefact_shift', type=float, default=0, help='Time to shift artefact position from nominal.')
 
     group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping)')
     group.add_argument('--backup_hdf5',

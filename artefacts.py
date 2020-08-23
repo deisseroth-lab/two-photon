@@ -16,7 +16,7 @@ def get_frame_start(df_voltage, fname):
     return frame_start
 
 
-def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname, settle_time):
+def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname, buffer, shift, settle_time):
     """From a dataframe of experiment timings, return a dataframe of artefact locations in the data."""
     logger.info('Calculating artefact regions')
 
@@ -26,8 +26,8 @@ def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname, settle_t
     y_px = size['y_px']
 
     stim = df_voltage[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
-    stim_start = stim[stim.diff() > 0.5].index
-    stim_stop = stim[stim.diff() < -0.5].index
+    stim_start = stim[stim.diff() > 0.5].index + shift
+    stim_stop = stim[stim.diff() < -0.5].index + shift + buffer
 
     frame, z_plane, y_px_start, y_px_stop = get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
 
