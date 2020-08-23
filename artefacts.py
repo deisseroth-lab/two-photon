@@ -84,9 +84,10 @@ def get_loc(times, frame_start, y_px, shape, settle_time):
     idx = np.transpose(np.unravel_index(indices, shape))
 
     frame_times = (frame_start[1:] - frame_start[:-1])
-    offset = (interp - indices) * frame_times - settle_time
+    frame_times_stims = frame_times[indices]
     
-    acquisition_times = frame_times - settle_time
+    offset = (interp - indices) * frame_times_stims - settle_time
+    acquisition_times = frame_times_stims - settle_time
     y_offset = y_px * offset / acquisition_times
     
     return idx, y_offset
