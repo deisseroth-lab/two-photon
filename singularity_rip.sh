@@ -13,16 +13,13 @@ fi
 #       --name=wine \
 #       --shm-size=1g \
 
-singularity exec \
-	    --bind=${1}:/data \
-	    --env=RUN_AS_ROOT=yes \
-	    --env=USE_XVFB=yes \
-	    --env=XVFB_SERVER=:95 \
-	    --env=XVFB_SCREEN=0 \
-	    --env=XVFB_RESOLUTION=320x240x8 \
-	    --env=DISPLAY=:95 \
-	    --hostname="$(hostname)" \
-	    --workdir=/ \
-	    --env=TZ=America/Los_Angeles \
-	    two-photon.sif \
-	    xvfb-run python /app/rip.py --directory=/data
+# create profiles directory to save profiles
+mkdir -p profiles
+
+# Run the container! Note that you can also build the container with any Windows
+# applications already added (instead of bound)
+singularity run \
+    --bind "${PWD}/Prairie View":"/APPS/Prairie View/" \
+    --bind ${PWD}/profiles:/PROFILES \
+    --bind=${1}:/data \
+    two-photon.sif

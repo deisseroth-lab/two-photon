@@ -37,14 +37,48 @@ Run the ripper using the following command, using a directory containin the *RAW
 
 ## Singularity for ripping only
 
-To build the Singularity container, build the Docker container first and then convert:
+To build the Singularity container, build the Docker container first:
 
 ```bash
 docker build -t two-photon .
-singularity build two-photon.sif docker-daemon://two-photon:latest
 ```
 
-Run the ripper using the following command, using a directory containin the *RAWDATA* and *FileList.txt files.
+and then build the [Singularity recipe](singularity/Singularity) that has a custom entrypoint. 
+
+```bash
+sudo singularity build two-photon.sif singularity/Singularity
+```
+
+This works by way of creating a fresh wineprefix in /tmp (where we have write) and then
+starting an interactive (bash) shell for the user to issue commands. If you want
+to run the container interactively without using the [singularity_rip.sh](singularity_rip.sh)
+script, you can do the following:
+
+```bash
+# create profiles directory to save profiles
+mkdir -p profiles
+
+# Run the container! Note that you can also build the container with any Windows
+# applications already added (instead of bound)
+singularity run \
+    --bind "${PWD}/Prairie View":"/APPS/Prairie View/" \
+    --bind ${PWD}/profiles:/PROFILES \
+    two-photon.sif
+```
+
+This is going to set up wine, and then start a bash shell for you to work with. For example,
+I could use wine to open up the .exe file:
+
+```bash
+wine /APPS/Prairie\ View/Utilities/Image-Block\ Ripping\ Utility.exe
+```
+to open up the Image Block Ripping Utility:
+
+![singularity/img/ripping-utility.png](singularity/img/ripping-utility.png)
+
+If you want to run the ripper, you can use the following command, using a directory containin the *RAWDATA* and *FileList.txt files.
+
+**will update when have testing data**
 
 _NB: Does not work_
 

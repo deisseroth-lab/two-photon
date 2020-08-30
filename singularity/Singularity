@@ -1,0 +1,14 @@
+bootstrap: docker-daemon
+from: dlab/two-photon:latest
+
+%help
+  First build the docker container:
+    docker build -t dlab/two-photon:latest .
+  Then build this file:
+    sudo singularity build two-photon.sif Singularity
+  
+%files
+runscript.sh /runscript.sh
+
+%runscript
+    /bin/bash /runscript.sh
