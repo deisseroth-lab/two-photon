@@ -21,6 +21,10 @@ else
 
   echo "Installing DirectX9..."
   winetricks dlls d3dx9
+
+  echo "Installing C++ libraries..."
+  winetricks -q vcrun2015
+
 fi
 
 echo "Containerizing apps directory..."
@@ -46,8 +50,6 @@ echo " wget http://server.c-otto.de/baphometsfluch/bs25setup.zip"
 echo " unzip bs25setup.zip"
 echo " wine ./bs25-setup.exe"
 echo "Use the Apps directory to make it install permanently."
-echo "To use the two photon rip script, you can do:"
-echo "/usr/bin/python3 /app/rip.py --directory=/data" 
 cd $TEMPDIR
 env WINEPREFIX="$WINEPREFIX" WINEARCH="$WINEARCH" /bin/bash
 

@@ -76,12 +76,62 @@ to open up the Image Block Ripping Utility:
 
 ![singularity/img/ripping-utility.png](singularity/img/ripping-utility.png)
 
-If you want to run the ripper, you can use the following command, using a directory containin the *RAWDATA* and *FileList.txt files.
-
-**will update when have testing data**
-
-_NB: Does not work_
+If you want to run the ripper, you can bind your data folder to /data in the container. 
 
 ```bash
-./singularity_rip.sh /media/hdd0/two-photon/sample/overview-023
+# create profiles directory to save profiles
+mkdir -p profiles
+
+# Run the container! Note that you can also build the container with any Windows
+# applications already added (instead of bound)
+singularity run \
+    --bind "${PWD}/Prairie View":"/APPS/Prairie View/" \
+    --bind ${PWD}/profiles:/PROFILES \
+    --bind ${PWD}/overview-23:/data \
+    two-photon.sif
 ```
+
+When you are in the bash shell, you can look at the script usage:
+
+```bash
+$ /usr/bin/python3 /app/rip.py --help
+usage: rip.py [-h] --directory DIRECTORY [--ripper RIPPER]
+
+Preprocess 2-photon raw data into individual tiffs
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --directory DIRECTORY
+                        Directory containing RAWDATA and Filelist.txt files for ripping
+  --ripper RIPPER       Location of Bruker Image Block Ripping Utility.
+```
+
+So we would then run:
+
+```bash
+$ /usr/bin/python3 /app/rip.py --directory /data
+2020-08-30 13:26:17.533 rip:50 INFO Ripping from:
+ /data/Cycle00001_Filelist.txt
+ /data/CYCLE_000001_RAWDATA_000025
+2020-08-30 13:26:17.536 rip:96 INFO Waiting for ripper to finish: 3600 seconds remaining
+0032:fixme:ntdll:EtwEventRegister ({5eec90ab-c022-44b2-a5dd-fd716a222a15}, 0xd4c1000, 0xd4d2030, 0xd4d2050) stub.
+0032:fixme:ntdll:EtwEventSetInformation (deadbeef, 2, 0xd4cfd70, 43) stub
+0032:fixme:nls:GetThreadPreferredUILanguages 00000038, 0xdb0cdb4, 0xdb0cdd0 0xdb0cdb0
+0032:fixme:nls:get_dummy_preferred_ui_language (0x38 0xdb0cdb4 0xdb0cdd0 0xdb0cdb0) returning a dummy value (current locale)
+2020-08-30 13:26:27.546 rip:107 INFO   Found filelist files: None
+2020-08-30 13:26:27.546 rip:108 INFO   Found rawdata files: None
+2020-08-30 13:26:27.546 rip:109 INFO   Found this many tiff files: 1
+2020-08-30 13:26:27.546 rip:96 INFO Waiting for ripper to finish: 3590 seconds remaining
+2020-08-30 13:26:37.557 rip:107 INFO   Found filelist files: None
+2020-08-30 13:26:37.558 rip:108 INFO   Found rawdata files: None
+2020-08-30 13:26:37.558 rip:109 INFO   Found this many tiff files: 1
+2020-08-30 13:26:37.558 rip:112 INFO Detected ripping is complete
+2020-08-30 13:26:47.565 rip:114 INFO Killing ripper
+2020-08-30 13:26:47.566 rip:116 INFO Ripper has been killed
+2020-08-30 13:26:48.567 rip:88 INFO cleaned up!
+```
+
+The above example is interactive, but you can modify this logic however needed.
+For example, you can customize the runscript to accept the data folder, and run the 
+python3 command directly and exit. Please be careful about specifying /usr/bin/python3
+directly, as likely a python from a host environment could also be found.

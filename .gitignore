@@ -10,6 +10,7 @@ __pycache__/
 *.sif
 *.simg
 profiles/
+overview-23
 
 # Distribution / packaging
 .Python
