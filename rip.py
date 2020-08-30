@@ -1,5 +1,6 @@
 """Library for running Bruker image ripping utility."""
 
+import argparse
 import atexit
 import glob
 import logging
@@ -48,7 +49,7 @@ def raw_to_tiff(dirname, ripper):
 
     logger.info('Ripping from:\n %s\n %s', '\n '.join([str(f) for f in filelists]),
                 '\n '.join([str(f) for f in rawdata]))
-    
+
     system = platform.system()
     if system == 'Linux':
         cmd = ['wine']
@@ -103,8 +104,8 @@ def raw_to_tiff(dirname, ripper):
         tiffs_changed = (last_tiffs != tiffs)
         last_tiffs = tiffs
 
-        logging.info('  Found filelist files: %s', filelists)
-        logging.info('  Found rawdata files: %s', rawdata)
+        logging.info('  Found filelist files: %s', filelists or None)
+        logging.info('  Found rawdata files: %s', rawdata or None)
         logging.info('  Found this many tiff files: %s', len(tiffs))
 
         if not filelists and not rawdata and not tiffs_changed:
@@ -116,3 +117,15 @@ def raw_to_tiff(dirname, ripper):
             return
 
     raise RippingError('Killed ripper because it did not finish within %s seconds' % RIP_TOTAL_WAIT_SECS)
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s.%(msecs)03d %(module)s:%(lineno)s %(levelname)s %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S')
+    parser = argparse.ArgumentParser(description='Preprocess 2-photon raw data into individual tiffs')
+    parser.add_argument('--directory', type=pathlib.Path, required=True,
+                        help='Directory containing RAWDATA and Filelist.txt files for ripping')
+    parser.add_argument('--ripper', default='/Prairie View/Utilities/Image-Block Ripping Utility.exe',
+                        help='Location of Bruker Image Block Ripping Utility.')
+    args = parser.parse_args()
+    raw_to_tiff(args.directory, args.ripper)
