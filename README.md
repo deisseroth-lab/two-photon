@@ -44,15 +44,15 @@ docker build -t two-photon .
 ```
 
 and then build the [Singularity recipe](singularity/Singularity) that has a custom entrypoint. 
+Note that this script assumes the context to be the root of the repository.
 
 ```bash
 sudo singularity build two-photon.sif singularity/Singularity
 ```
 
-This works by way of creating a fresh wineprefix in /tmp (where we have write) and then
-starting an interactive (bash) shell for the user to issue commands. If you want
-to run the container interactively without using the [singularity_rip.sh](singularity_rip.sh)
-script, you can do the following:
+The runscript (entrypoint) works by way of creating a fresh wineprefix in /tmp (where we have write) and then
+starting an interactive (bash) shell for the user to issue commands. For example, if we don't
+have data and want to interact with wine in the container:
 
 ```bash
 # create profiles directory to save profiles
@@ -72,7 +72,8 @@ I could use wine to open up the .exe file:
 ```bash
 wine /APPS/Prairie\ View/Utilities/Image-Block\ Ripping\ Utility.exe
 ```
-to open up the Image Block Ripping Utility:
+
+and this is the Image Block Ripping Utility:
 
 ![singularity/img/ripping-utility.png](singularity/img/ripping-utility.png)
 
@@ -91,7 +92,8 @@ singularity run \
     two-photon.sif
 ```
 
-When you are in the bash shell, you can look at the script usage:
+Again when we are in the bash shell, we can prepare to run the script by first
+looking at its usage:
 
 ```bash
 $ /usr/bin/python3 /app/rip.py --help
@@ -133,5 +135,7 @@ $ /usr/bin/python3 /app/rip.py --directory /data
 
 The above example is interactive, but you can modify this logic however needed.
 For example, you can customize the runscript to accept the data folder, and run the 
-python3 command directly and exit. Please be careful about specifying /usr/bin/python3
+python3 command directly and exit. You could also choose to add the Windows app to the
+container beforehand (and then not bind it) and this will only work
+if you don't require write in that folder. Finally, please be careful about specifying /usr/bin/python3
 directly, as likely a python from a host environment could also be found.

@@ -49,7 +49,9 @@ echo "To install Broken Sword 2.5 (download size ~700MB):"
 echo " wget http://server.c-otto.de/baphometsfluch/bs25setup.zip"
 echo " unzip bs25setup.zip"
 echo " wine ./bs25-setup.exe"
-echo "Use the Apps directory to make it install permanently."
+echo
+echo "To run the two-photon ripper:"
+echo "/usr/bin/python3 /app/rip.py --directory /data"
 cd $TEMPDIR
 env WINEPREFIX="$WINEPREFIX" WINEARCH="$WINEARCH" /bin/bash
 
