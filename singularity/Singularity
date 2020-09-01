@@ -8,7 +8,6 @@ from: dlab/two-photon:latest
     sudo singularity build two-photon.sif Singularity
   And then run the container with binds to setup wine
     singularity run \
-      --bind "${PWD}/Prairie View":"/APPS/Prairie View/" \
       --bind ${PWD}/profiles:/PROFILES \
       --bind ${PWD}/overview-21:/data \
       two-photon.sif

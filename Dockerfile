@@ -6,7 +6,7 @@ RUN xvfb-run winetricks -q vcrun2015 && \
     mkdir -p /APPS /PROFILES && \
     chmod 0777 /APPS /PROFILES
 
-COPY ["Prairie View/", "/Prairie View/"]
+COPY ["Prairie View/", "/APPS/Prairie View/"]
 
 ENV PATH /opt/conda/bin:$PATH
 

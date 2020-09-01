@@ -37,10 +37,12 @@ Run the ripper using the following command, using a directory containin the *RAW
 
 ## Singularity for ripping only
 
+### 1. Build from Docker
+
 To build the Singularity container, build the Docker container first:
 
 ```bash
-docker build -t two-photon .
+docker build -t dlab/two-photon:latest .
 ```
 
 and then build the [Singularity recipe](singularity/Singularity) that has a custom entrypoint. 
@@ -50,8 +52,10 @@ Note that this script assumes the context to be the root of the repository.
 sudo singularity build two-photon.sif singularity/Singularity
 ```
 
-The runscript (entrypoint) works by way of creating a fresh wineprefix in /tmp (where we have write) and then
-starting an interactive (bash) shell for the user to issue commands. For example, if we don't
+### 2. Run interactively 
+
+If you don't bind a data directory, then the runscript (entrypoint) will give you an interactive bash
+shell to issue commands. For example, if we don't
 have data and want to interact with wine in the container:
 
 ```bash
@@ -60,10 +64,7 @@ mkdir -p profiles
 
 # Run the container! Note that you can also build the container with any Windows
 # applications already added (instead of bound)
-singularity run \
-    --bind "${PWD}/Prairie View":"/APPS/Prairie View/" \
-    --bind ${PWD}/profiles:/PROFILES \
-    two-photon.sif
+singularity run --bind ${PWD}/profiles:/PROFILES two-photon.sif
 ```
 
 This is going to set up wine, and then start a bash shell for you to work with. For example,
@@ -77,22 +78,7 @@ and this is the Image Block Ripping Utility:
 
 ![singularity/img/ripping-utility.png](singularity/img/ripping-utility.png)
 
-If you want to run the ripper, you can bind your data folder to /data in the container. 
-
-```bash
-# create profiles directory to save profiles
-mkdir -p profiles
-
-# Run the container! Note that you can also build the container with any Windows
-# applications already added (instead of bound)
-singularity run \
-    --bind "${PWD}/Prairie View":"/APPS/Prairie View/" \
-    --bind ${PWD}/profiles:/PROFILES \
-    --bind ${PWD}/overview-23:/data \
-    two-photon.sif
-```
-
-Again when we are in the bash shell, we can prepare to run the script by first
+If you want to run the ripper script, we can prepare to run the script by first
 looking at its usage:
 
 ```bash
@@ -108,10 +94,20 @@ optional arguments:
   --ripper RIPPER       Location of Bruker Image Block Ripping Utility.
 ```
 
+You would need to have bound the data to some folder in the container other than
+/data (binding to data will run the script automatically). For example:
+
+```bash
+singularity run \
+    --bind ${PWD}/profiles:/PROFILES \
+    --bind ${PWD}/overview-23:/ripper-data \
+    two-photon.sif
+```
+
 So we would then run:
 
 ```bash
-$ /usr/bin/python3 /app/rip.py --directory /data
+$ /usr/bin/python3 /app/rip.py --directory /ripper-data
 2020-08-30 13:26:17.533 rip:50 INFO Ripping from:
  /data/Cycle00001_Filelist.txt
  /data/CYCLE_000001_RAWDATA_000025
@@ -133,9 +129,26 @@ $ /usr/bin/python3 /app/rip.py --directory /data
 2020-08-30 13:26:48.567 rip:88 INFO cleaned up!
 ```
 
-The above example is interactive, but you can modify this logic however needed.
-For example, you can customize the runscript to accept the data folder, and run the 
-python3 command directly and exit. You could also choose to add the Windows app to the
-container beforehand (and then not bind it) and this will only work
-if you don't require write in that folder. Finally, please be careful about specifying /usr/bin/python3
+### 3. Run headlessly
+
+If you want to run the same command but headlessly, you can bind your data folder to /data in the container,
+and be sure to export environment variables for xvfb-run (a virtual display).
+
+```bash
+# create profiles directory to save profiles
+mkdir -p profiles
+
+singularity run \
+    --env=XVFB_SERVER=:95 \
+    --env=XVFB_SCREEN=0 \
+    --env=XVFB_RESOLUTION=320x240x8 \
+    --env=DISPLAY=:95 \
+    --bind ${PWD}/profiles:/PROFILES \
+    --bind ${PWD}/overview-23:/data \
+    two-photon.sif
+```
+
+The command above should work headlessly, and exit the container when all is
+finished. Again, if you want to work headlessly without having it automated, just bind
+the data to another location. Also please be careful about specifying /usr/bin/python3
 directly, as likely a python from a host environment could also be found.
