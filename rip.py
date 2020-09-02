@@ -118,14 +118,18 @@ def raw_to_tiff(dirname, ripper):
 
     raise RippingError('Killed ripper because it did not finish within %s seconds' % RIP_TOTAL_WAIT_SECS)
 
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s.%(msecs)03d %(module)s:%(lineno)s %(levelname)s %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S')
     parser = argparse.ArgumentParser(description='Preprocess 2-photon raw data into individual tiffs')
-    parser.add_argument('--directory', type=pathlib.Path, required=True,
+    parser.add_argument('--directory',
+                        type=pathlib.Path,
+                        required=True,
                         help='Directory containing RAWDATA and Filelist.txt files for ripping')
-    parser.add_argument('--ripper', default='/Prairie View/Utilities/Image-Block Ripping Utility.exe',
+    parser.add_argument('--ripper',
+                        default='/apps/Prairie View/Utilities/Image-Block Ripping Utility.exe',
                         help='Location of Bruker Image Block Ripping Utility.')
     args = parser.parse_args()
     raw_to_tiff(args.directory, args.ripper)
