@@ -2,9 +2,11 @@ FROM scottyhardy/docker-wine:stable-5.0.2-nordp
 
 LABEL maintainer="Chris Roat <croat@stanford.edu>"
 
-RUN xvfb-run winetricks -q vcrun2015
+RUN xvfb-run winetricks -q vcrun2015 && \
+    mkdir -p /APPS /PROFILES && \
+    chmod 0777 /APPS /PROFILES
 
-COPY ["Prairie View/", "/Prairie View/"]
+COPY ["Prairie View/", "/APPS/Prairie View/"]
 
 ENV PATH /opt/conda/bin:$PATH
 

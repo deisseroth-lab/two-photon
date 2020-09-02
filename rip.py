@@ -125,7 +125,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Preprocess 2-photon raw data into individual tiffs')
     parser.add_argument('--directory', type=pathlib.Path, required=True,
                         help='Directory containing RAWDATA and Filelist.txt files for ripping')
-    parser.add_argument('--ripper', default='/Prairie View/Utilities/Image-Block Ripping Utility.exe',
+    parser.add_argument('--ripper', default='/APPS/Prairie View/Utilities/Image-Block Ripping Utility.exe',
                         help='Location of Bruker Image Block Ripping Utility.')
     args = parser.parse_args()
     raw_to_tiff(args.directory, args.ripper)
