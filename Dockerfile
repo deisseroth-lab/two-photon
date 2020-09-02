@@ -2,11 +2,11 @@ FROM scottyhardy/docker-wine:stable-5.0.2-nordp
 
 LABEL maintainer="Chris Roat <croat@stanford.edu>"
 
-RUN xvfb-run winetricks -q vcrun2015 && \
-    mkdir -p /APPS /PROFILES && \
-    chmod 0777 /APPS /PROFILES
+# The entrypoint wrapper runs the wine setup as wineuser.
+# The xvfb-run wrapper redirects all displays to a virtual (unseen) display.
+RUN /usr/bin/entrypoint xvfb-run winetricks -q vcrun2015
 
-COPY ["Prairie View/", "/APPS/Prairie View/"]
+COPY ["Prairie View/", "/apps/Prairie View/"]
 
 ENV PATH /opt/conda/bin:$PATH
 
@@ -24,4 +24,7 @@ RUN conda env update --quiet --name base --file environment.yml \
     && rm environment.yml
 
 # Copy code last to avoid busting the cache.
-COPY *.py /app/
+COPY *.py /apps/two-photon/
+COPY container/runscript.sh /apps
+
+CMD /apps/runscript.sh
