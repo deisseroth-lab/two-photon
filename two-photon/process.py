@@ -72,6 +72,10 @@ def main():
 
     if args.rip:
         rip.raw_to_tiff(dirname_input, args.ripper)
+    
+    # Quick exit if our only operation is to rip
+    if not (args.backup_data or args.preprocess or args.run_suite2p or args.backup_output or args.backup_hdf5):
+        return
 
     # Quick exit if our only operation is to rip
     if not (args.backup_data or args.preprocess or args.run_suite2p or args.backup_output or args.backup_hdf5):
