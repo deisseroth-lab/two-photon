@@ -1,7 +1,8 @@
-build: build_docker
-	rm -f two-photon.sif
-	sudo singularity build two-photon.sif Singularity
+all: docker docker_build
 
-build_docker:
+docker:
 	docker build -t dlab/two-photon .
 
+singularity:
+	rm -f two-photon.sif
+	sudo singularity build two-photon.sif Singularity
