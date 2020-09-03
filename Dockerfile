@@ -25,6 +25,6 @@ RUN conda env update --quiet --name base --file environment.yml \
 
 # Copy code last to avoid busting the cache.
 COPY *.py /apps/two-photon/
-COPY container/runscript.sh /apps
+COPY runscript.sh /apps/runscript.sh
 
 CMD /apps/runscript.sh
