@@ -8,10 +8,11 @@
 # TODO: For the common case of batch running, investigate eliminating entrypoint script 
 # and many of these variables.
 
-if [ "$#" -ne 1 ]; then
-    echo "Require one argument: directory to rip, which should contain RAWDATA and FileList files"
+if [ "$#" -ne 2 ]; then
+    echo "Requires two arguments: name of the Docker image, and location containing RAWDATA and FileList files"
     exit -1
 fi
+
 
 docker run \
        -it \
@@ -31,4 +32,5 @@ docker run \
        --name=bruker-ripper \
        --shm-size=1g \
        --env=TZ=America/Los_Angeles \
-       dlab/two-photon:latest
+       ${2}
+

@@ -1,155 +1,212 @@
 # two-photon
 
-First, install the code. You can use [GitHub desktop](https://desktop.github.com/), or use git on the command line:
+This repository contains utilities for analyzing 2p data:
+
+- [Ripping](#ripping)
+- [Analysis Pipeline](#analysis-pipeline)
+
+## Ripping
+
+Ripping is the process for converting a Bruker RAWDATA file into a set of TIFF files.
+
+The lab has created [Docker](https://www.docker.com/) and
+[Singularity](https://sylabs.io/docs/) containers with the Bruker Prairie View software,
+which can be used to rip raw data computers with either set of container software installed.
+
+### Ripping via Singularity
+
+If you would like to run from a container on [Sherlock](https://www.sherlock.stanford.edu/),
+the lab keeps a copy available in \$OAK/pipeline/containers/bruker-rip.
+
+```bash
+$ ./rip_singularity.sh \
+    $OAK/pipeline/bruker-rip/containers/bruker-rip.20200903.sif \
+    /path/to/data/with/filelist/and/rawdata/
+
+# or run directly without the shell script:
+singularity run \
+    --bind=/path/to/data/with/filelist/and/rawdata/:/data \
+    $OAK/pipeline/bruker-rip/containers/bruker-rip.20200903.sif
+```
+
+Here is an example run on sample data on the Sherlock cluster:
+
+```bash
+# After logging into Sherlock
+
+$ sdev
+$ mkdir -p $OAK/users/${USER}/test
+$ cp -r $OAK/pipeline/bruker-rip/sampledata/overview-023 $OAK/users/${USER}/test
+$ singularity run \
+    --bind=$OAK/users/${USER}/test/overview-023:/data \
+    $OAK/pipeline/bruker-rip/containers/bruker-rip.20200903.sif
+Setting up wine environment
+
+Executing rip.  It is OK to see 1 err and 4 fixme statements in what follows
+
+2020-09-03 16:34:51.336 rip:50 INFO Ripping from:
+ /data/Cycle00001_Filelist.txt
+ /data/CYCLE_000001_RAWDATA_000025
+2020-09-03 16:34:51.393 rip:96 INFO Waiting for ripper to finish: 3600 seconds remaining
+000d:err:menubuilder:init_xdg error looking up the desktop directory
+0033:fixme:ntdll:EtwEventRegister ({5eec90ab-c022-44b2-a5dd-fd716a222a15}, 0x70e1000, 0x70f2030, 0x70f2050) stub.
+0033:fixme:ntdll:EtwEventSetInformation (deadbeef, 2, 0x70efd70, 43) stub
+0033:fixme:nls:GetThreadPreferredUILanguages 00000038, 0x772cdb4, 0x772cdd0 0x772cdb0
+0033:fixme:nls:get_dummy_preferred_ui_language (0x38 0x772cdb4 0x772cdd0 0x772cdb0) returning a dummy value (current locale)
+
+=================================================================
+	Native Crash Reporting
+=================================================================
+Got a SIGSEGV while executing native code. This usually indicates
+a fatal error in the mono runtime or one of the native libraries
+used by your application.
+=================================================================
+
+=================================================================
+	Managed Stacktrace:
+=================================================================
+	  at <unknown> <0xffffffff>
+	  at Image_Block_Ripping_Utility.frmMain:RipRawImages <0x000e5>
+	  at Image_Block_Ripping_Utility.frmMain:StartConversion <0x009ca>
+	  at System.Threading.ThreadHelper:ThreadStart_Context <0x000b2>
+	  at System.Threading.ExecutionContext:RunInternal <0x001f5>
+	  at System.Threading.ExecutionContext:Run <0x00052>
+	  at System.Threading.ExecutionContext:Run <0x0007a>
+	  at System.Threading.ThreadHelper:ThreadStart <0x0005a>
+	  at System.Object:runtime_invoke_void__this__ <0x0009f>
+=================================================================
+wine: Unhandled page fault on read access to 0000000000000050 at address 000000007BC519B5 (thread 0033), starting debugger...
+2020-09-03 16:35:01.398 rip:107 INFO   Found filelist files: {PosixPath('/data/Cycle00001_Filelist.txt')}
+2020-09-03 16:35:01.398 rip:108 INFO   Found rawdata files: {PosixPath('/data/CYCLE_000001_RAWDATA_000025')}
+2020-09-03 16:35:01.399 rip:109 INFO   Found this many tiff files: 0
+2020-09-03 16:35:01.399 rip:96 INFO Waiting for ripper to finish: 3590 seconds remaining
+2020-09-03 16:35:11.406 rip:107 INFO   Found filelist files: {PosixPath('/data/Cycle00001_Filelist.txt')}
+2020-09-03 16:35:11.407 rip:108 INFO   Found rawdata files: {PosixPath('/data/CYCLE_000001_RAWDATA_000025')}
+2020-09-03 16:35:11.407 rip:109 INFO   Found this many tiff files: 0
+2020-09-03 16:35:11.407 rip:96 INFO Waiting for ripper to finish: 3580 seconds remaining
+2020-09-03 16:35:21.413 rip:107 INFO   Found filelist files: {PosixPath('/data/Cycle00001_Filelist.txt')}
+2020-09-03 16:35:21.414 rip:108 INFO   Found rawdata files: {PosixPath('/data/CYCLE_000001_RAWDATA_000025')}
+2020-09-03 16:35:21.414 rip:109 INFO   Found this many tiff files: 0
+2020-09-03 16:35:21.414 rip:96 INFO Waiting for ripper to finish: 3570 seconds remaining
+2020-09-03 16:35:31.419 rip:107 INFO   Found filelist files: {PosixPath('/data/Cycle00001_Filelist.txt')}
+2020-09-03 16:35:31.419 rip:108 INFO   Found rawdata files: {PosixPath('/data/CYCLE_000001_RAWDATA_000025')}
+2020-09-03 16:35:31.419 rip:109 INFO   Found this many tiff files: 0
+2020-09-03 16:35:31.419 rip:96 INFO Waiting for ripper to finish: 3560 seconds remaining
+2020-09-03 16:35:41.430 rip:107 INFO   Found filelist files: {PosixPath('/data/Cycle00001_Filelist.txt')}
+2020-09-03 16:35:41.430 rip:108 INFO   Found rawdata files: {PosixPath('/data/CYCLE_000001_RAWDATA_000025')}
+2020-09-03 16:35:41.431 rip:109 INFO   Found this many tiff files: 0
+2020-09-03 16:35:41.431 rip:96 INFO Waiting for ripper to finish: 3550 seconds remaining
+2020-09-03 16:35:51.442 rip:107 INFO   Found filelist files: {PosixPath('/data/Cycle00001_Filelist.txt')}
+2020-09-03 16:35:51.442 rip:108 INFO   Found rawdata files: {PosixPath('/data/CYCLE_000001_RAWDATA_000025')}
+2020-09-03 16:35:51.443 rip:109 INFO   Found this many tiff files: 0
+2020-09-03 16:35:51.443 rip:96 INFO Waiting for ripper to finish: 3540 seconds remaining
+2020-09-03 16:36:01.453 rip:107 INFO   Found filelist files: {PosixPath('/data/Cycle00001_Filelist.txt')}
+2020-09-03 16:36:01.453 rip:108 INFO   Found rawdata files: {PosixPath('/data/CYCLE_000001_RAWDATA_000025')}
+2020-09-03 16:36:01.453 rip:109 INFO   Found this many tiff files: 0
+2020-09-03 16:36:01.453 rip:96 INFO Waiting for ripper to finish: 3530 seconds remaining
+^CTraceback (most recent call last):
+  File "/apps/two-photon/rip.py", line 135, in <module>
+    raw_to_tiff(args.directory, args.ripper)
+X connection to :99 broken (explicit kill or server shutdown).
+  File "/apps/two-photon/rip.py", line 98, in raw_to_tiff
+    time.sleep(RIP_POLL_SECS)
+KeyboardInterrupt
+2020-09-03 16:36:11.556 rip:88 INFO cleaned up!
+```
+
+### Ripping via Docker
+
+You can run on a device with Docker installed using the command below. The image
+will be available locally if you've build from source (see below), or it will be
+fetched from the the [Stanford GitLab](https://code.stanford.edu/deisseroth-lab/bruker-rip). Contact croat@stanford.edu if you need access.
+
+```bash
+$ ./rip_docker.sh \
+    scr.svc.stanford.edu/deisseroth-lab/bruker-rip:20200903 \
+    /path/to/data/with/filelist/and/rawdata/
+```
+
+Example run:
+
+```bash
+$ ./rip_docker.sh \
+    scr.svc.stanford.edu/deisseroth-lab/bruker-rip:20200903 \
+    /media/hdd0/two-photon/sample/overview-023
+Setting up wine environment
+
+Executing rip.  It is OK to see 1 err and 4 fixme statements in what follows
+
+2020-09-03 14:41:33.936 rip:50 INFO Ripping from:
+ /data/Cycle00001_Filelist.txt
+ /data/CYCLE_000001_RAWDATA_000025
+2020-09-03 14:41:33.940 rip:96 INFO Waiting for ripper to finish: 3600 seconds remaining
+000d:err:menubuilder:init_xdg error looking up the desktop directory
+0031:fixme:ntdll:EtwEventRegister ({5eec90ab-c022-44b2-a5dd-fd716a222a15}, 0xd441000, 0xd452030, 0xd452050) stub.
+0031:fixme:ntdll:EtwEventSetInformation (deadbeef, 2, 0xd44fd70, 43) stub
+0031:fixme:nls:GetThreadPreferredUILanguages 00000038, 0xdaacdb4, 0xdaacdd0 0xdaacdb0
+0031:fixme:nls:get_dummy_preferred_ui_language (0x38 0xdaacdb4 0xdaacdd0 0xdaacdb0) returning a dummy value (current locale)
+2020-09-03 14:41:43.951 rip:107 INFO   Found filelist files: None
+2020-09-03 14:41:43.951 rip:108 INFO   Found rawdata files: None
+2020-09-03 14:41:43.951 rip:109 INFO   Found this many tiff files: 1
+2020-09-03 14:41:43.951 rip:96 INFO Waiting for ripper to finish: 3590 seconds remaining
+2020-09-03 14:41:53.962 rip:107 INFO   Found filelist files: None
+2020-09-03 14:41:53.962 rip:108 INFO   Found rawdata files: None
+2020-09-03 14:41:53.962 rip:109 INFO   Found this many tiff files: 1
+2020-09-03 14:41:53.963 rip:112 INFO Detected ripping is complete
+2020-09-03 14:42:03.973 rip:114 INFO Killing ripper
+2020-09-03 14:42:03.973 rip:116 INFO Ripper has been killed
+2020-09-03 14:42:04.975 rip:88 INFO cleaned up!
+```
+
+## Suite2p Pipeline
+
+The analysis pipeline can run several steps of standard preprocessing of 2p data:
+
+- rip
+- preprocess to remove stim artefacts
+- run Suite2p (optionally combining with previously preprocessed sessions)
+- backup input data
+- backup output data
+
+First, install the code. You can use [GitHub desktop](https://desktop.github.com/), or use git on the command line. This only has to be done once.
 
 ```bash
 git clone https://github.com/deisseroth-lab/two-photon.git
 ```
 
 Next, install the environment. You will need to install [conda](https://docs.conda.io/en/latest/) first. Then
-use the following command from within the directory where you installed the repo above.
+use the following command from within the directory where you installed the repo above. This also only has
+to be done once.
 
 ```bash
 conda env create -f environment.yml -n two-photon
 ```
 
-To run the processing script, the environment needs to be activated:
+To run the processing script, the environment needs to be activated. This needs to be done each time start a terminal.
 
 ```
 conda activate two-photon
 ```
 
-See the comments at the top of the [preprocess script](https://github.com/deisseroth-lab/two-photon/blob/master/process.py)
+Running the code requires running a command-line program with flags to denote where the input data is, where the output
+data and logs should go, and what stages of the pipeline should be run.
+
+See the comments at the top of the [preprocess script](https://github.com/deisseroth-lab/two-photon/blob/master/app/process.py)
 for examples of how to run the processing.
 
-## Docker for ripping only
+## Building Containers
 
-To build the docker container and tag it as `two-photon:latest`, use:
-
-```bash
-docker build -t two-photon .
-```
-
-Run the ripper using the following command, using a directory containin the *RAWDATA* and *FileList.txt files.
+To build all available containers, which will first build the Docker container, and then convert it
+to a Singularity container:
 
 ```bash
-./docker_rip.sh /media/hdd0/two-photon/sample/overview-023
+make build
 ```
 
-## Singularity for ripping only
-
-### 1. Build from Docker
-
-To build the Singularity container, build the Docker container first:
+To build just the docker containers:
 
 ```bash
-docker build -t dlab/two-photon:latest .
+make build_docker
 ```
 
-and then build the [Singularity recipe](singularity/Singularity) that has a custom entrypoint. 
-Note that this script assumes the context to be the root of the repository.
-
-```bash
-sudo singularity build two-photon.sif singularity/Singularity
-```
-
-### 2. Run interactively 
-
-If you don't bind a data directory, then the runscript (entrypoint) will give you an interactive bash
-shell to issue commands. For example, if we don't
-have data and want to interact with wine in the container:
-
-```bash
-# create profiles directory to save profiles
-mkdir -p profiles
-
-# Run the container! Note that you can also build the container with any Windows
-# applications already added (instead of bound)
-singularity run --bind ${PWD}/profiles:/PROFILES two-photon.sif
-```
-
-This is going to set up wine, and then start a bash shell for you to work with. For example,
-I could use wine to open up the .exe file:
-
-```bash
-wine /APPS/Prairie\ View/Utilities/Image-Block\ Ripping\ Utility.exe
-```
-
-and this is the Image Block Ripping Utility:
-
-![singularity/img/ripping-utility.png](singularity/img/ripping-utility.png)
-
-If you want to run the ripper script, we can prepare to run the script by first
-looking at its usage:
-
-```bash
-$ /usr/bin/python3 /app/rip.py --help
-usage: rip.py [-h] --directory DIRECTORY [--ripper RIPPER]
-
-Preprocess 2-photon raw data into individual tiffs
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --directory DIRECTORY
-                        Directory containing RAWDATA and Filelist.txt files for ripping
-  --ripper RIPPER       Location of Bruker Image Block Ripping Utility.
-```
-
-You would need to have bound the data to some folder in the container other than
-/data (binding to data will run the script automatically). For example:
-
-```bash
-singularity run \
-    --bind ${PWD}/profiles:/PROFILES \
-    --bind ${PWD}/overview-23:/ripper-data \
-    two-photon.sif
-```
-
-So we would then run:
-
-```bash
-$ /usr/bin/python3 /app/rip.py --directory /ripper-data
-2020-08-30 13:26:17.533 rip:50 INFO Ripping from:
- /data/Cycle00001_Filelist.txt
- /data/CYCLE_000001_RAWDATA_000025
-2020-08-30 13:26:17.536 rip:96 INFO Waiting for ripper to finish: 3600 seconds remaining
-0032:fixme:ntdll:EtwEventRegister ({5eec90ab-c022-44b2-a5dd-fd716a222a15}, 0xd4c1000, 0xd4d2030, 0xd4d2050) stub.
-0032:fixme:ntdll:EtwEventSetInformation (deadbeef, 2, 0xd4cfd70, 43) stub
-0032:fixme:nls:GetThreadPreferredUILanguages 00000038, 0xdb0cdb4, 0xdb0cdd0 0xdb0cdb0
-0032:fixme:nls:get_dummy_preferred_ui_language (0x38 0xdb0cdb4 0xdb0cdd0 0xdb0cdb0) returning a dummy value (current locale)
-2020-08-30 13:26:27.546 rip:107 INFO   Found filelist files: None
-2020-08-30 13:26:27.546 rip:108 INFO   Found rawdata files: None
-2020-08-30 13:26:27.546 rip:109 INFO   Found this many tiff files: 1
-2020-08-30 13:26:27.546 rip:96 INFO Waiting for ripper to finish: 3590 seconds remaining
-2020-08-30 13:26:37.557 rip:107 INFO   Found filelist files: None
-2020-08-30 13:26:37.558 rip:108 INFO   Found rawdata files: None
-2020-08-30 13:26:37.558 rip:109 INFO   Found this many tiff files: 1
-2020-08-30 13:26:37.558 rip:112 INFO Detected ripping is complete
-2020-08-30 13:26:47.565 rip:114 INFO Killing ripper
-2020-08-30 13:26:47.566 rip:116 INFO Ripper has been killed
-2020-08-30 13:26:48.567 rip:88 INFO cleaned up!
-```
-
-### 3. Run headlessly
-
-If you want to run the same command but headlessly, you can bind your data folder to /data in the container,
-and be sure to export environment variables for xvfb-run (a virtual display).
-
-```bash
-# create profiles directory to save profiles
-mkdir -p profiles
-
-singularity run \
-    --env=XVFB_SERVER=:95 \
-    --env=XVFB_SCREEN=0 \
-    --env=XVFB_RESOLUTION=320x240x8 \
-    --env=DISPLAY=:95 \
-    --bind ${PWD}/profiles:/PROFILES \
-    --bind ${PWD}/overview-23:/data \
-    two-photon.sif
-```
-
-The command above should work headlessly, and exit the container when all is
-finished. Again, if you want to work headlessly without having it automated, just bind
-the data to another location. Also please be careful about specifying /usr/bin/python3
-directly, as likely a python from a host environment could also be found.
+View the [Makefile](Makefile) for additional targets, including targets to build just build specific containers.

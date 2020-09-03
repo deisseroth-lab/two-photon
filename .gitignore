@@ -9,8 +9,6 @@ __pycache__/
 # Singularity
 *.sif
 *.simg
-profiles/
-overview-23
 
 # Distribution / packaging
 .Python
