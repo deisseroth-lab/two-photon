@@ -6,6 +6,12 @@ __pycache__/
 # C extensions
 *.so
 
+# Singularity
+*.sif
+*.simg
+profiles/
+overview-23
+
 # Distribution / packaging
 .Python
 build/
