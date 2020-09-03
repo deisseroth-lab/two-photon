@@ -22,7 +22,7 @@ def unlink(fname):
         pass
 
 
-def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None, artefact_shift=None, artefact_buffer=None):
+def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None):
     """Convert TIFF files from 2p dataset in HDF5.  Optionally create artefact-removed dataset."""
     # Important: code expects no chunking in z, y, z -- need to have -1 for these dimensions.
     data = data.rechunk((64, -1, -1, -1))  # 64 frames will be processed together for artefact removal.
@@ -53,15 +53,13 @@ def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None, artefac
                                                  depth=depth,
                                                  dtype=data.dtype,
                                                  df=df_artefacts,
-                                                 shift=artefact_shift,
-                                                 buffer=artefact_buffer,
                                                  mydepth=depth)
                 unlink(fname_data)
                 os.makedirs(fname_data.parent, exist_ok=True)
                 data_corrected.to_hdf5(fname_data, HDF5_KEY)
 
 
-def remove_artefacts(chunk, df, shift, buffer, mydepth, block_info):
+def remove_artefacts(chunk, df, mydepth, block_info):
     """Remove artefacts from a chunk representing a set of frames."""
     chunk = chunk.copy()
     frame_min, frame_max = block_info[0]['array-location'][0]
@@ -85,7 +83,7 @@ def remove_artefacts(chunk, df, shift, buffer, mydepth, block_info):
         # Use `frame:frame` so the following slice always returns a frame.  Using just `frame`
         # would lead to a series being returned if there was only one present.
         for row in df.loc[frame:frame].itertuples():
-            y_slice = slice(int(row.y_min) + shift, int(row.y_max) + shift + buffer + 1)
+            y_slice = slice(int(row.y_min), int(row.y_max) + 1)
             before = chunk[index - 1, row.z_plane, y_slice]
             after = chunk[index + 1, row.z_plane, y_slice]
             chunk[index, row.z_plane, y_slice] = (before + after) / 2
