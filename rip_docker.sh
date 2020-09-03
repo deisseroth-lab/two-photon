@@ -10,6 +10,7 @@
 
 if [ "$#" -ne 1 ]; then
     echo "Require one argument: directory to rip, which should contain RAWDATA and FileList files"
+    exit -1
 fi
 
 docker run \
