@@ -7,10 +7,8 @@ build: build_docker build_singularity
 push: push_docker push_singularity
 
 build_docker:
-	docker build -t $(NAME):$(TAG) .
-	docker tag $(NAME):$(TAG) $(NAME):latest
-	docker tag $(NAME):$(TAG) $(REPO)/$(NAME):$(TAG)
-	docker tag $(NAME):$(TAG) $(REPO)/$(NAME):latest
+	docker build -t $(REPO)/$(NAME):$(TAG) .
+	docker tag $(REPO)/$(NAME):$(TAG) $(REPO)/$(NAME):latest
 
 build_singularity:
 	rm -f $(NAME).$(TAG).sif

@@ -17,7 +17,7 @@ fi
 docker run \
        -it \
        --rm \
-       --volume=${1}:/data \
+       --volume=${2}:/data \
        --env=USER_NAME=${USER} \
        --env=USER_UID=$(id -u ${USER}) \
        --env=USER_GID=$(id -g ${USER}) \
@@ -32,5 +32,4 @@ docker run \
        --name=bruker-ripper \
        --shm-size=1g \
        --env=TZ=America/Los_Angeles \
-       ${2}
-
+       ${1}
