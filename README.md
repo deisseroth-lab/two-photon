@@ -3,7 +3,7 @@
 This repository contains utilities for analyzing 2p data:
 
 - [Ripping](#ripping)
-- [Analysis Pipeline](#analysis-pipeline)
+- [Suite2p Pipeline](#suite2p-pipeline)
 
 ## Ripping
 
@@ -16,7 +16,7 @@ which can be used to rip raw data computers with either set of container softwar
 ### Ripping via Singularity
 
 If you would like to run from a container on [Sherlock](https://www.sherlock.stanford.edu/),
-the lab keeps a copy available in \$OAK/pipeline/containers/bruker-rip.
+the lab keeps a copy available in \$OAK/pipeline/bruker-rip/containers.
 
 ```bash
 $ ./rip_singularity.sh \
@@ -33,8 +33,7 @@ Here is an example run on sample data on the Sherlock cluster:
 
 ```bash
 # After logging into Sherlock
-
-$ sdev
+$ sdev  # May take some time to get a machine for development use
 $ mkdir -p $OAK/users/${USER}/test
 $ cp -r $OAK/pipeline/bruker-rip/sampledata/overview-023 $OAK/users/${USER}/test
 $ singularity run \
