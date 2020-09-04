@@ -5,18 +5,20 @@
 
 set -e
 
-echo "Setting up wine environment"
+# USE_XVFB means xvfb is already running.  If it is unset, xvfb-run should wrap commands.
+[[ -z "${USE_XVFB}" ]] && CMDPREFIX=xvfb-run
+
+echo
+echo "Setting up wine environment (many err and fixme statements are OK)."
+echo
 TEMPDIR="$(mktemp -d)"
 export WINEPREFIX="${TEMPDIR}/.wine"
 export WINEARCH="win64"
-cp -r /home/wineuser/.wine "${WINEPREFIX}"
-echo
+${CMDPREFIX} wineboot --init
+${CMDPREFIX} winetricks -q vcrun2015
 
-echo "Executing rip.  It is OK to see 1 'err' and 4 'fixme' statements in what follows."
 echo
-# USE_XVFB means xvfb is already running.  If it is unset, xvfb needs to be run here.
-if [[ -z "${USE_XVFB}" ]]; then
-    xvfb-run /usr/bin/python3 /apps/two-photon/rip.py --directory /data
-else
-    /usr/bin/python3 /apps/two-photon/rip.py --directory /data
-fi
+echo "Executing rip. Four fixme statements are OK."
+echo
+${CMDPREFIX} /usr/bin/python3 /apps/two-photon/rip.py --directory /data
+${CMDPREFIX} wineboot --end-session

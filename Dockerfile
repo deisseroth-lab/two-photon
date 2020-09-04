@@ -3,14 +3,14 @@
 # This docker-wine image is about 2 GB, mostly from:
 # - 0.5 GB from Ubuntu packages
 # - 1.5 GB from wine install
-FROM scottyhardy/docker-wine:stable-5.0.2-nordp
+FROM scottyhardy/docker-wine:devel-5.16-20200829-nordp
 
 LABEL maintainer="Chris Roat <croat@stanford.edu>"
 
 # The entrypoint wrapper runs the wine setup as wineuser.
 # The xvfb-run wrapper redirects all displays to a virtual (unseen) display.
 # This adds about 1.6 GB to the image size.
-RUN /usr/bin/entrypoint xvfb-run winetricks -q vcrun2015
+# RUN /usr/bin/entrypoint xvfb-run winetricks -q vcrun2015
 
 COPY ["Prairie View/", "/apps/Prairie View/"]
 
