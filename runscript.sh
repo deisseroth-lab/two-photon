@@ -9,16 +9,18 @@ set -e
 [[ -z "${USE_XVFB}" ]] && CMDPREFIX=xvfb-run
 
 echo
-echo "Setting up wine environment (many err and fixme statements are OK)."
+echo "Copying wine environment."
 echo
 TEMPDIR="$(mktemp -d)"
 export WINEPREFIX="${TEMPDIR}/.wine"
 export WINEARCH="win64"
-${CMDPREFIX} wineboot --init
-${CMDPREFIX} winetricks -q vcrun2015
+cp -r /home/wineuser/.wine "${WINEPREFIX}"
 
-echo
 echo "Executing rip. Four fixme statements are OK."
 echo
-${CMDPREFIX} /usr/bin/python3 /apps/two-photon/rip.py --directory /data
-${CMDPREFIX} wineboot --end-session
+${CMDPREFIX} /usr/bin/python3 /apps/two-photon/rip.py --directory /data "$@"
+
+# Pipelines write their output to the /results directory.  However, the ripper
+# deletes the original data and writes the results in the original location.
+# Therefore, we must copy the original data directory to the results directory.
+cp -r /data/. /results
