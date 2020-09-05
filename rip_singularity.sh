@@ -7,4 +7,4 @@ if [ "$#" -ne 3 ]; then
     exit -1
 fi
 
-singularity run --bind=${2}:/data --bind=${3}:/data ${1}
+singularity run --bind=${2}:/data --bind=${3}:/results ${1}
