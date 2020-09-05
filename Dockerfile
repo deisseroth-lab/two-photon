@@ -12,8 +12,6 @@ LABEL maintainer="Chris Roat <croat@stanford.edu>"
 # This adds about 1.6 GB to the image size.
 RUN /usr/bin/entrypoint xvfb-run winetricks -q vcrun2015
 
-COPY ["Prairie View/", "/apps/Prairie View/"]
-
 ENV PATH /opt/conda/bin:$PATH
 
 # Conda install is 250 MB
@@ -24,6 +22,8 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
     ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
     echo "conda activate base" >> ~/.bashrc
+
+COPY ["Prairie View 5.5/", "/apps/Prairie View 5.5/"]
 
 # Environment is ~700 MB
 COPY environment.yml .

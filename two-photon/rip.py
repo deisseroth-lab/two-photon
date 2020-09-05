@@ -7,8 +7,10 @@ import logging
 import os
 import pathlib
 import platform
+import re
 import subprocess
 import time
+import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +22,35 @@ RIP_EXTRA_WAIT_SECS = 10  # Extra time to wait after ripping is detected to be d
 RIP_POLL_SECS = 10  # Time to wait between polling the filesystem.
 
 
+def translate_pv_version(majmin):
+    """For some Prairie View versions, use a compatible, later version of the ripping software."""
+    version_map = {'5.4': '5.5'}
+    return version_map.get(majmin, majmin)
+
+
 class RippingError(Exception):
     """Error raised if problems encountered during data conversion."""
+
+
+def determine_ripper(data_dir, ripper_dir):
+    """Determine which version of the Prairie View ripper to use based on reading metadata."""
+    xml_files = list(data_dir.glob('*.env'))
+    if len(xml_files) != 1:
+        raise RippingError('Only expected 1 xml file in %s, but found: %s' % (data_dir, xml_files))
+
+    tree = ET.parse(data_dir / xml_files[0])
+    root = tree.getroot()
+    version = root.attrib['version']
+
+    # Prairie View versions are given in the form A.B.C.D.
+    match = re.match(r'^(?P<majmin>\d+\.\d+)\.\d+\.\d+$', version)
+    if not match:
+        raise RippingError('Could not parse version (expected A.B.C.D): %s' % version)
+    majmin = match.group('majmin')
+    version = translate_pv_version(majmin)
+    ripper = ripper_dir / f'Prairie View {version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
+    logger.info('Data created with Prairie version %s, using ripper: %s' % (majmin, ripper))
+    return ripper
 
 
 def raw_to_tiff(dirname, ripper):
@@ -93,7 +122,7 @@ def raw_to_tiff(dirname, ripper):
     remaining_sec = RIP_TOTAL_WAIT_SECS
     last_tiffs = {}
     while remaining_sec >= 0:
-        logging.info('Waiting for ripper to finish: %d seconds remaining', remaining_sec)
+        logging.info('Watching for ripper to finish for %d more seconds', remaining_sec)
         remaining_sec -= RIP_POLL_SECS
         time.sleep(RIP_POLL_SECS)
 
@@ -128,8 +157,10 @@ if __name__ == "__main__":
                         type=pathlib.Path,
                         required=True,
                         help='Directory containing RAWDATA and Filelist.txt files for ripping')
-    parser.add_argument('--ripper',
-                        default='/apps/Prairie View/Utilities/Image-Block Ripping Utility.exe',
-                        help='Location of Bruker Image Block Ripping Utility.')
+    parser.add_argument('--rippers_directory',
+                        type=pathlib.Path,
+                        default='/apps',
+                        help='Directory container versions of Bruker Image Block Ripping Utility.')
     args = parser.parse_args()
-    raw_to_tiff(args.directory, args.ripper)
+    ripper = determine_ripper(args.directory, args.rippers_directory)
+    raw_to_tiff(args.directory, ripper)
