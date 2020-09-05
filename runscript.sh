@@ -16,7 +16,7 @@ export WINEPREFIX="${TEMPDIR}/.wine"
 export WINEARCH="win64"
 cp -r /home/wineuser/.wine "${WINEPREFIX}"
 
-echo "Executing rip. Four fixme statements are OK."
+echo "Executing rip. One err and four fixme statements are OK."
 echo
 ${CMDPREFIX} /usr/bin/python3 /apps/two-photon/rip.py --directory /data "$@"
 

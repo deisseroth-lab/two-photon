@@ -8,16 +8,22 @@
 # TODO: For the common case of batch running, investigate eliminating entrypoint script 
 # and many of these variables.
 
-if [ "$#" -ne 2 ]; then
-    echo "Requires two arguments: name of the Docker image, and location containing RAWDATA and FileList files"
+if [ "$#" -ne 3 ]; then
+    echo "Requires three arguments: name of the Docker image, location containing RAWDATA and FileList files, and results location"
     exit -1
 fi
 
-
+# Flags determined by examining docker-wine with:
+# --as-me
+# --workdir
+# --xvfb
+# --name 
+# https://github.com/scottyhardy/docker-wine/blob/master/docker-wine
 docker run \
        -it \
        --rm \
        --volume=${2}:/data \
+       --volume=${3}:/results \
        --env=USER_NAME=${USER} \
        --env=USER_UID=$(id -u ${USER}) \
        --env=USER_GID=$(id -g ${USER}) \
