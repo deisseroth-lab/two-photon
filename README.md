@@ -23,10 +23,37 @@ Here's a quick demo:
 ```bash
 $ mkdir -p $OAK/users/${USER}/test
 $ cp -r $OAK/pipeline/bruker-rip/sampledata/overview-023 $OAK/users/${USER}/test
-$ chmod 777 $OAK/users/${USER}/test/* # we need write permissions to convert the file
-$ singularity run \
-    --bind=$OAK/users/${USER}/test/overview-023:/data \
-    $OAK/pipeline/bruker-rip/containers/bruker-rip.sif
+$ chmod -R u+w $OAK/users/${USER}/test/overview-023  # Write permissions needed to convert files.
+$ cd $OAK/users/${USER}/test/overview-023
+$ singularity run --bind=$(pwd):/data $OAK/pipeline/bruker-rip/containers/bruker-rip.sif
+
+Copying wine environment.
+
+Executing rip. One err and four fixme statements are OK.
+
+2020-11-16 17:25:43.859 rip:50 INFO Data created with Prairie version 5.4, using ripper: /apps/Prairie View 5.5/Utilities/Image-Block Ripping Utility.exe
+2020-11-16 17:25:43.861 rip:77 INFO Ripping from:
+ /data/Cycle00001_Filelist.txt
+ /data/CYCLE_000001_RAWDATA_000025
+2020-11-16 17:25:43.883 rip:123 INFO Watching for ripper to finish for 3600 more seconds
+000d:err:menubuilder:init_xdg error looking up the desktop directory
+0031:fixme:ntdll:EtwEventRegister ({5eec90ab-c022-44b2-a5dd-fd716a222a15}, 0x5571000, 0x5582030, 0x5582050) stub.
+0031:fixme:ntdll:EtwEventSetInformation (deadbeef, 2, 0x557fd70, 43) stub
+0031:fixme:nls:GetThreadPreferredUILanguages 00000038, 0x4fccdb4, 0x4fccdd0 0x4fccdb0
+0031:fixme:nls:get_dummy_preferred_ui_language (0x38 0x4fccdb4 0x4fccdd0 0x4fccdb0) returning a dummy value (current locale)
+2020-11-16 17:25:53.889 rip:134 INFO   Found filelist files: None
+2020-11-16 17:25:53.889 rip:135 INFO   Found rawdata files: None
+2020-11-16 17:25:53.889 rip:136 INFO   Found this many tiff files: 1
+2020-11-16 17:25:53.889 rip:123 INFO Watching for ripper to finish for 3590 more seconds
+2020-11-16 17:26:03.899 rip:134 INFO   Found filelist files: None
+2020-11-16 17:26:03.899 rip:135 INFO   Found rawdata files: None
+2020-11-16 17:26:03.899 rip:136 INFO   Found this many tiff files: 1
+2020-11-16 17:26:03.899 rip:139 INFO Detected ripping is complete
+2020-11-16 17:26:13.909 rip:141 INFO Killing ripper
+2020-11-16 17:26:13.910 rip:143 INFO Ripper has been killed
+2020-11-16 17:26:14.912 rip:115 INFO cleaned up!
+X connection to :99 broken (explicit kill or server shutdown).
+X connection to :99 broken (explicit kill or server shutdown).
 ```
 
 Here's how to run on your own data. We request a node allocation using `sdev` as
@@ -36,37 +63,9 @@ long-running jobs should not use login nodes.
 $ cd my/data/path
 $ sdev  # May take some time to get a machine for development use
 $ singularity run --bind=$(pwd):/data $OAK/pipeline/bruker-rip/containers/bruker-rip.sif
-```
 
-Here is an example run for a local machine:
+[Similar output as above]
 
-```bash
-$ singularity run --bind=/media/hdd0/two-photon/sample/overview-023:/data bruker-rip.sif
-Setting up wine environment
-
-Executing rip.  It is OK to see 1 err and 4 fixme statements in what follows
-
-2020-09-03 16:59:07.566 rip:50 INFO Ripping from:
- /data/Cycle00001_Filelist.txt
- /data/CYCLE_000001_RAWDATA_000025
-2020-09-03 16:59:07.581 rip:96 INFO Waiting for ripper to finish: 3600 seconds remaining
-000d:err:menubuilder:init_xdg error looking up the desktop directory
-0031:fixme:ntdll:EtwEventRegister ({5eec90ab-c022-44b2-a5dd-fd716a222a15}, 0xd4c1000, 0xd4d2030, 0xd4d2050) stub.
-0031:fixme:ntdll:EtwEventSetInformation (deadbeef, 2, 0xd4cfd70, 43) stub
-0031:fixme:nls:GetThreadPreferredUILanguages 00000038, 0xdb0cdb4, 0xdb0cdd0 0xdb0cdb0
-0031:fixme:nls:get_dummy_preferred_ui_language (0x38 0xdb0cdb4 0xdb0cdd0 0xdb0cdb0) returning a dummy value (current locale)
-2020-09-03 16:59:17.592 rip:107 INFO   Found filelist files: None
-2020-09-03 16:59:17.592 rip:108 INFO   Found rawdata files: None
-2020-09-03 16:59:17.592 rip:109 INFO   Found this many tiff files: 1
-2020-09-03 16:59:17.592 rip:96 INFO Waiting for ripper to finish: 3590 seconds remaining
-2020-09-03 16:59:27.603 rip:107 INFO   Found filelist files: None
-2020-09-03 16:59:27.603 rip:108 INFO   Found rawdata files: None
-2020-09-03 16:59:27.603 rip:109 INFO   Found this many tiff files: 1
-2020-09-03 16:59:27.604 rip:112 INFO Detected ripping is complete
-2020-09-03 16:59:37.614 rip:114 INFO Killing ripper
-2020-09-03 16:59:37.614 rip:116 INFO Ripper has been killed
-2020-09-03 16:59:38.616 rip:88 INFO cleaned up!
-X connection to :99 broken (explicit kill or server shutdown).
 ```
 
 ### Ripping via Docker
