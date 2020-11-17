@@ -1,5 +1,5 @@
 REPO=scr.svc.stanford.edu/deisseroth-lab
-TAG=20200903
+TAG=20201116
 NAME=bruker-rip
 
 build: build_docker build_singularity

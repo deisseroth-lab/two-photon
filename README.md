@@ -19,26 +19,29 @@ If you would like to run from a container on [Sherlock](https://www.sherlock.sta
 the lab keeps a copy available in \$OAK/pipeline/bruker-rip/containers.
 
 Here's a quick demo:
+
 ```bash
 $ mkdir -p $OAK/users/${USER}/test
 $ cp -r $OAK/pipeline/bruker-rip/sampledata/overview-023 $OAK/users/${USER}/test
 $ chmod 777 $OAK/users/${USER}/test/* # we need write permissions to convert the file
 $ singularity run \
     --bind=$OAK/users/${USER}/test/overview-023:/data \
-    $OAK/pipeline/bruker-rip/containers/bruker-rip.20200903.sif
+    $OAK/pipeline/bruker-rip/containers/bruker-rip.sif
 ```
 
 Here's how to run on your own data. We request a node allocation using `sdev` as
 long-running jobs should not use login nodes.
+
 ```bash
 $ cd my/data/path
 $ sdev  # May take some time to get a machine for development use
-$ singularity run --bind=$(pwd):/data $OAK/pipeline/bruker-rip/containers/bruker-rip.20200903.sif
+$ singularity run --bind=$(pwd):/data $OAK/pipeline/bruker-rip/containers/bruker-rip.sif
 ```
+
 Here is an example run for a local machine:
 
 ```bash
-$ singularity run --bind=/media/hdd0/two-photon/sample/overview-023:/data bruker-rip.20200903.sif 
+$ singularity run --bind=/media/hdd0/two-photon/sample/overview-023:/data bruker-rip.sif
 Setting up wine environment
 
 Executing rip.  It is OK to see 1 err and 4 fixme statements in what follows
@@ -136,7 +139,7 @@ conda env create -f environment.yml -n two-photon
 
 To run the processing script, the environment needs to be activated. This needs to be done each time start a terminal.
 
-```
+```bash
 conda activate two-photon
 ```
 
