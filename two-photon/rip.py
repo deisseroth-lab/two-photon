@@ -2,9 +2,7 @@
 
 import argparse
 import atexit
-import glob
 import logging
-import os
 import pathlib
 import platform
 import re
@@ -49,7 +47,7 @@ def determine_ripper(data_dir, ripper_dir):
     majmin = match.group('majmin')
     version = translate_pv_version(majmin)
     ripper = ripper_dir / f'Prairie View {version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
-    logger.info('Data created with Prairie version %s, using ripper: %s' % (majmin, ripper))
+    logger.info('Data created with Prairie version %s, using ripper: %s', majmin, ripper)
     return ripper
 
 
@@ -162,5 +160,5 @@ if __name__ == "__main__":
                         default='/apps',
                         help='Directory container versions of Bruker Image Block Ripping Utility.')
     args = parser.parse_args()
-    ripper = determine_ripper(args.directory, args.rippers_directory)
-    raw_to_tiff(args.directory, ripper)
+    ripper_path = determine_ripper(args.directory, args.rippers_directory)
+    raw_to_tiff(args.directory, ripper_path)

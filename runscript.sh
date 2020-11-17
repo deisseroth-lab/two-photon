@@ -19,8 +19,3 @@ cp -r /home/wineuser/.wine "${WINEPREFIX}"
 echo "Executing rip. One err and four fixme statements are OK."
 echo
 ${CMDPREFIX} /usr/bin/python3 /apps/two-photon/rip.py --directory /data "$@"
-
-# Pipelines write their output to the /results directory.  However, the ripper
-# deletes the original data and writes the results in the original location.
-# Therefore, we must copy the original data directory to the results directory.
-cp -r /data/. /results

@@ -8,8 +8,8 @@
 # TODO: For the common case of batch running, investigate eliminating entrypoint script 
 # and many of these variables.
 
-if [ "$#" -ne 3 ]; then
-    echo "Requires three arguments: name of the Docker image, location containing RAWDATA and FileList files, and results location"
+if [ "$#" -ne 2 ]; then
+    echo "Requires three arguments: name of the Docker image and the location containing RAWDATA and FileList files"
     exit -1
 fi
 
@@ -23,7 +23,6 @@ docker run \
        -it \
        --rm \
        --volume=${2}:/data \
-       --volume=${3}:/results \
        --env=USER_NAME=${USER} \
        --env=USER_UID=$(id -u ${USER}) \
        --env=USER_GID=$(id -g ${USER}) \
