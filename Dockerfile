@@ -23,6 +23,7 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
     echo "conda activate base" >> ~/.bashrc
 
+COPY ["Prairie View 5.4/", "/apps/Prairie View 5.4/"]
 COPY ["Prairie View 5.5/", "/apps/Prairie View 5.5/"]
 
 # Environment is ~700 MB

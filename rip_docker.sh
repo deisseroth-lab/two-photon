@@ -9,7 +9,7 @@
 # and many of these variables.
 
 if [ "$#" -ne 2 ]; then
-    echo "Requires three arguments: name of the Docker image and the location containing RAWDATA and FileList files"
+    echo "Requires two arguments: name of the Docker image and the location containing RAWDATA and FileList files"
     exit -1
 fi
 

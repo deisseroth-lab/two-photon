@@ -24,12 +24,6 @@ class RippingError(Exception):
     """Error raised if problems encountered during data conversion."""
 
 
-def translate_pv_version(majmin):
-    """For some Prairie View versions, use a compatible, later version of the ripping software."""
-    version_map = {'5.4': '5.5'}
-    return version_map.get(majmin, majmin)
-
-
 def determine_ripper(data_dir, ripper_dir):
     """Determine which version of the Prairie View ripper to use based on reading metadata."""
     env_files = list(data_dir.glob('*.env'))
@@ -44,20 +38,19 @@ def determine_ripper(data_dir, ripper_dir):
     match = re.match(r'^(?P<majmin>\d+\.\d+)\.\d+\.\d+$', version)
     if not match:
         raise RippingError('Could not parse version (expected A.B.C.D): %s' % version)
-    majmin = match.group('majmin')
-    version = translate_pv_version(majmin)
+    version = match.group('majmin')
     ripper = ripper_dir / f'Prairie View {version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
-    logger.info('Data created with Prairie version %s, using ripper: %s', majmin, ripper)
+    logger.info('Data created with Prairie version %s, using ripper: %s', version, ripper)
     return ripper
 
 
 def raw_to_tiff(dirname, ripper):
     """Convert Bruker RAW files to TIFF files using ripping utility specified with `ripper`."""
     def get_filelists():
-        return set(dirname.glob('*Filelist.txt'))
+        return list(sorted(dirname.glob('*Filelist.txt')))
 
     def get_rawdata():
-        return set(dirname.glob('*RAWDATA*'))
+        return list(sorted(dirname.glob('*RAWDATA*')))
 
     def get_tiffs():
         return set(dirname.glob('*.ome.tif'))
