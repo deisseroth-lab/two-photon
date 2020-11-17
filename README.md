@@ -65,7 +65,15 @@ $ sdev  # May take some time to get a machine for development use
 $ singularity run --bind=$(pwd):/data $OAK/pipeline/bruker-rip/containers/bruker-rip.sif
 
 [Similar output as above]
+```
 
+And here's how to run a batch job, using the `rip.sbatch` script from this
+repository.
+
+```bash
+$ cd my/data/path
+$ sbatch path/to/two-photon/rip.sbatch .
+Submitted batch job ABCDEFGH
 ```
 
 ### Ripping via Docker
