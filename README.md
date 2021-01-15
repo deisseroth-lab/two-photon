@@ -153,7 +153,7 @@ conda activate two-photon
 Running the code requires running a command-line program with flags to denote where the input data is, where the output
 data and logs should go, and what stages of the pipeline should be run.
 
-See the comments at the top of the [preprocess script](https://github.com/deisseroth-lab/two-photon/blob/master/app/process.py)
+See the comments at the top of the [preprocess script](https://github.com/deisseroth-lab/two-photon/blob/master/two-photon/process.py)
 for examples of how to run the processing.
 
 ## Building Containers
