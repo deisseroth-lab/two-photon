@@ -7,9 +7,10 @@
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_output
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_data
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_hdf5
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:VRmm-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess --run_suite2p --backup_output --backup_data
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:VRmm-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess --run_suite2p --backup_output --backup_data --zip_data
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess --run_suite2p --prev_recording 202003M89:regL23-000
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --rip --preprocess --run_suite2p --prev_recording 20200325M89:VRmm-000 --backup_output --backup_data
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --rip --preprocess --settle_time --backup_output
 
 import argparse
 from datetime import datetime
@@ -20,6 +21,7 @@ import pathlib
 import platform
 import re
 import subprocess
+import glob
 
 import numpy as np
 import pandas as pd
@@ -101,16 +103,6 @@ def main():
             os.remove(fname_zipped_data)
         else:
             backup(dirname_input, dirname_backup / 'data')
-        if stim_channel_name:
-            slm_date = datetime.strptime(session_name[:8], '%Y%m%d').strftime('%d-%b-%Y')
-            slm_mouse = session_name[8:]
-
-            slm_root = args.slm_setup_dir / slm_date
-            slm_targets = slm_root / slm_mouse
-            slm_trial_order_pattern = '*_' + slm_mouse + '_' + recording_name
-
-            backup(slm_targets, dirname_backup / 'targets')
-            backup_pattern(slm_root, slm_trial_order_pattern, dirname_backup / 'trial_order')
 
     if args.preprocess or args.run_suite2p:
         fname_uncorrected_hdf5 = dirname_hdf5 / 'uncorrected' / 'uncorrected.h5'
@@ -137,6 +129,19 @@ def main():
         # It is also backed up here so that it can be immediately available with the rest of
         # the output data, even if --backup_data is not used.
         backup(fname_csv, dirname_backup / 'output')
+        if stim_channel_name:
+            slm_date = datetime.strptime(session_name[:8], '%Y%m%d').strftime('%d-%b-%Y')
+            slm_mouse = session_name[8:]
+
+            slm_root = args.slm_setup_dir / slm_date
+            slm_targets = slm_root / slm_mouse
+            slm_trial_order_pattern = '*_' + slm_mouse + '_' + recording_name
+
+            backup(slm_targets, dirname_backup / 'targets')
+            trial_order_folder = glob.glob(os.path.join(slm_root,slm_trial_order_pattern))
+            trial_order_path = pathlib.WindowsPath(trial_order_folder[0])
+            backup(trial_order_path,dirname_backup / 'trial_order')
+            # backup_pattern(slm_root, slm_trial_order_pattern, dirname_backup / 'trial_order')
 
     if args.backup_hdf5:
         backup(dirname_hdf5, dirname_backup / 'hdf5')
@@ -249,6 +254,7 @@ def run_suite2p(hdf5_list, dirname_output, mdata):
         'spatial_hp': 50,
         'sparse_mode': False,
         'threshold_scaling': 3,
+        'diameter': 6,
     }
     logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in hdf5_list), params)
     with open(dirname_output / 'recording_order.json', 'w') as fout:
@@ -280,7 +286,7 @@ def parse_args():
                        help='Top level directory of data collection (where microscope writes files)')
     group.add_argument('--slm_setup_dir',
                        type=pathlib.Path,
-                       default='Z:/mSLM_B115/SetupFiles/Experiment',
+                       default='Z:/mSLM/SetupFiles/Experiment',
                        help='Top level directory for SLM setup data')
     group.add_argument('--output_dir', type=pathlib.Path, help='Top level directory of data processing')
 
