@@ -12,7 +12,7 @@ def test_determine_ripper_54(tmp_path):
 """)
 
     actual = rip.determine_ripper(tmp_path, Path('/toplevel'))
-    expected = Path('/toplevel/Prairie View 5.5/Utilities/Image-Block Ripping Utility.exe')
+    expected = Path('/toplevel/Prairie View 5.4/Utilities/Image-Block Ripping Utility.exe')
     assert actual == expected
 
 
