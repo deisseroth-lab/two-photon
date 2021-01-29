@@ -1,16 +1,16 @@
 # Script for running the initial processing and backups for Bruker 2p data.
 #
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --rip
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --run_suite2p
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --run_suite2p --prev_recording 20200310M88:regL23-000
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_output
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_data
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=X:\users\drinnenb\Data2p\ --backup_hdf5
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:VRmm-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess --run_suite2p --backup_output --backup_data --zip_data
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --preprocess --run_suite2p --prev_recording 202003M89:regL23-000
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --rip --preprocess --run_suite2p --prev_recording 20200325M89:VRmm-000 --backup_output --backup_data
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=X:\users\drinnenb\Data2p\ --rip --preprocess --settle_time --backup_output
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --run_suite2p
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --run_suite2p --prev_recording 20200310M88:regL23-000
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_output
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_data
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_hdf5
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:VRmm-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess --run_suite2p --backup_output --backup_data --zip_data
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess --run_suite2p --prev_recording 202003M89:regL23-000
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip --preprocess --run_suite2p --prev_recording 20200325M89:VRmm-000 --backup_output --backup_data
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip --preprocess --settle_time --backup_output
 
 import argparse
 from datetime import datetime
@@ -312,8 +312,8 @@ def parse_args():
         type=float,
         default=0,
         help='Amount of time at the beginning of an aquisition window to ignore while the hardware is settling.')
-    group.add_argument('--artefact_buffer', type=float, default=0, help='Time to exclude following calculated artefact')
-    group.add_argument('--artefact_shift', type=float, default=0, help='Time to shift artefact position from nominal.')
+    group.add_argument('--artefact_buffer', type=float, default=20, help='Time to exclude following calculated artefact')
+    group.add_argument('--artefact_shift', type=float, default=1, help='Time to shift artefact position from nominal.')
 
     group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping)')
     group.add_argument('--backup_hdf5',
