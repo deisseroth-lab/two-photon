@@ -74,7 +74,7 @@ def main():
 
     if args.rip:
         rip.raw_to_tiff(dirname_input, args.ripper)
-    
+
     # Quick exit if our only operation is to rip
     if not (args.backup_data or args.preprocess or args.run_suite2p or args.backup_output or args.backup_hdf5):
         return
@@ -142,6 +142,11 @@ def main():
             trial_order_path = pathlib.WindowsPath(trial_order_folder[0])
             backup(trial_order_path,dirname_backup / 'trial_order')
             # backup_pattern(slm_root, slm_trial_order_pattern, dirname_backup / 'trial_order')
+
+            backup_done_file = args.backup_dir / 'backup_done' / f'{session_name}_{recording_name}.backup_done'
+            backup_done_file.parent.mkdir(parents=True, exist_ok=True)
+            logger.info('Creating backup_done file: %s', backup_done_file)
+            backup_done_file.touch()
 
     if args.backup_hdf5:
         backup(dirname_hdf5, dirname_backup / 'hdf5')
