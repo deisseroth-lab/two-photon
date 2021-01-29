@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 
 import artefacts
+import common_lib
 import metadata
 import rip
 import tiffdata
@@ -68,7 +69,7 @@ def main():
 
     dirname_backup = args.backup_dir / session_name / recording_name
 
-    setup_logging(dirname_output)
+    common_lib.setup_logging(dirname_output)
 
     fname_csv = pathlib.Path(str(basename_input) + '_Cycle00001_VoltageRecording_001').with_suffix('.csv')
 
@@ -99,10 +100,10 @@ def main():
     if args.backup_data:
         if args.zip_data:
             fname_zipped_data = archive_dir(dirname_input)
-            backup(fname_zipped_data, dirname_backup)
+            common_lib.backup(fname_zipped_data, dirname_backup)
             os.remove(fname_zipped_data)
         else:
-            backup(dirname_input, dirname_backup / 'data')
+            common_lib.backup(dirname_input, dirname_backup / 'data')
 
     if args.preprocess or args.run_suite2p:
         fname_uncorrected_hdf5 = dirname_hdf5 / 'uncorrected' / 'uncorrected.h5'
@@ -124,11 +125,11 @@ def main():
             run_suite2p(data_files, dirname_output, mdata)
 
     if args.backup_output:
-        backup(dirname_output, dirname_backup / 'output')
+        common_lib.backup(dirname_output, dirname_backup / 'output')
         # This csv file is part of the original data and backed up with --backup_data.
         # It is also backed up here so that it can be immediately available with the rest of
         # the output data, even if --backup_data is not used.
-        backup(fname_csv, dirname_backup / 'output')
+        common_lib.backup(fname_csv, dirname_backup / 'output')
         if stim_channel_name:
             slm_date = datetime.strptime(session_name[:8], '%Y%m%d').strftime('%d-%b-%Y')
             slm_mouse = session_name[8:]
@@ -137,10 +138,10 @@ def main():
             slm_targets = slm_root / slm_mouse
             slm_trial_order_pattern = '*_' + slm_mouse + '_' + recording_name
 
-            backup(slm_targets, dirname_backup / 'targets')
+            common_lib.backup(slm_targets, dirname_backup / 'targets')
             trial_order_folder = glob.glob(os.path.join(slm_root,slm_trial_order_pattern))
             trial_order_path = pathlib.WindowsPath(trial_order_folder[0])
-            backup(trial_order_path,dirname_backup / 'trial_order')
+            common_lib.backup(trial_order_path,dirname_backup / 'trial_order')
             # backup_pattern(slm_root, slm_trial_order_pattern, dirname_backup / 'trial_order')
 
         backup_done_file = args.backup_dir / 'backup_done' / f'{session_name}_{recording_name}.backup_done'
@@ -149,7 +150,7 @@ def main():
         backup_done_file.touch()
 
     if args.backup_hdf5:
-        backup(dirname_hdf5, dirname_backup / 'hdf5')
+        common_lib.backup(dirname_hdf5, dirname_backup / 'hdf5')
 
 
 def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fname_data, mdata, buffer, shift, channel,
@@ -173,30 +174,6 @@ def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fna
     transform.convert(data, fname_data, df_artefacts, fname_uncorrected)
 
 
-def backup(local_location, backup_location):
-    """Sync local data to backup directory."""
-    os.makedirs(backup_location.parent, exist_ok=True)
-    system = platform.system()
-    if system == 'Windows':
-        if os.path.isdir(local_location):
-            cmd = ['robocopy.exe', str(local_location), str(backup_location), '/S']
-        else:
-            # Single file copy done by giving source and dest directories, and specifying full filename.
-            os.makedirs(backup_location, exist_ok=True)
-            cmd = ['robocopy.exe', str(local_location.parent), str(backup_location), local_location.name]
-        expected_returncode = 1  # robocopy.exe gives exit code 1 for a successful copy.
-    elif system == 'Linux':
-        if os.path.isdir(local_location):
-            cmd = ['rsync', '-avh', str(local_location) + '/', str(backup_location)]
-        else:
-            os.makedirs(backup_location, exist_ok=True)
-            cmd = ['rsync', '-avh', str(local_location), str(backup_location / local_location.name)]
-        expected_returncode = 0  # Most programs give an exit code of 0 on success.
-    else:
-        raise BackupError('Do not recognize system: %s' % system)
-    run_cmd(cmd, expected_returncode)
-
-
 def archive_dir(dirname):
     """Use tar+gzip to zip directory contents into single, compressed file."""
     fname_archive = dirname.with_suffix('.tgz')
@@ -204,12 +181,12 @@ def archive_dir(dirname):
     if system == 'Linux':
         # (c)reate archive as a (f)ile, use (z)ip compression
         cmd = ['tar', 'cfz', str(fname_archive), str(dirname)]
-        run_cmd(cmd, expected_returncode=0)
+        common_lib.run_cmd(cmd, expected_returncode=0)
     elif system == 'Windows':
         # Using 7z to mimic 'tar cfz' as per this post:
         # https://superuser.com/questions/244703/how-can-i-run-the-tar-czf-command-in-windows
         cmd = f'7z -ttar a dummy {dirname}\* -so | 7z -si -tgzip a {fname_archive}'
-        run_cmd(cmd, expected_returncode=0, shell=True)
+        common_lib.run_cmd(cmd, expected_returncode=0, shell=True)
     else:
         raise BackupError('Do not recognize system: %s' % system)
     return fname_archive
@@ -222,23 +199,14 @@ def backup_pattern(local_dir, local_pattern, backup_dir):
     """
     system = platform.system()
     if system == 'Linux':
-        backup(local_dir / local_pattern, backup_dir)
+        common_lib.backup(local_dir / local_pattern, backup_dir)
     elif system == 'Windows':
         os.makedirs(backup_dir, exist_ok=True)
         cmd = ['robocopy.exe', str(local_dir), str(backup_dir), local_pattern, '/S']
         expected_returncode = 1  # robocopy.exe gives exit code 1 for a successful copy.
-        run_cmd(cmd, expected_returncode)
+        common_lib.run_cmd(cmd, expected_returncode)
     else:
         raise BackupError('Do not recognize system: %s' % system)
-
-
-def run_cmd(cmd, expected_returncode, shell=False):
-    """Run a shell command via a subprocess."""
-    logger.info('Running command in subprocess:\n%s', cmd)
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=shell)  # pylint: disable=subprocess-run-check
-    if result.returncode != expected_returncode:
-        raise BackupError('Command failed!\n%s' % result.stdout.decode('utf-8'))
-    logger.info('Output:\n%s', result.stdout.decode('utf-8'))
 
 
 def run_suite2p(hdf5_list, dirname_output, mdata):
@@ -330,18 +298,6 @@ def parse_args():
     args = parser.parse_args()
 
     return args
-
-
-def setup_logging(dirname_output):
-    """Set up logging to write all INFO messages to both the stdout stram and a file."""
-    fname_logs = dirname_output / 'preprocess.log'
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s.%(msecs)03d %(module)s:%(lineno)s %(levelname)s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S',
-                        handlers=[logging.StreamHandler(), logging.FileHandler(fname_logs)])
-
-    # Turn of verbose WARN messages from the tifffile library.
-    logging.getLogger('tifffile').setLevel(logging.ERROR)
 
 
 if __name__ == '__main__':
