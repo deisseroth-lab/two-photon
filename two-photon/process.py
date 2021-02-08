@@ -112,7 +112,7 @@ def main():
         fname_hdf5 = dirname_hdf5 / 'data' / 'data.h5'
         if args.preprocess:
             preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected_hdf5, fname_hdf5, mdata,
-                       args.artefact_buffer, args.artefact_shift, args.channel, stim_channel_name, args.settle_time)
+                       args.artefact_buffer*mdata['period'], args.artefact_shift*mdata['period'], args.channel, stim_channel_name, args.settle_time)
         if args.run_suite2p:
             data_files = []
             for prev_recording in args.prev_recording:
@@ -312,8 +312,9 @@ def parse_args():
         type=float,
         default=0,
         help='Amount of time at the beginning of an aquisition window to ignore while the hardware is settling.')
-    group.add_argument('--artefact_buffer', type=float, default=20, help='Time to exclude following calculated artefact')
-    group.add_argument('--artefact_shift', type=float, default=1, help='Time to shift artefact position from nominal.')
+    
+    group.add_argument('--artefact_buffer', type=float, default=35, help='Time to exclude following calculated artefact')
+    group.add_argument('--artefact_shift', type=float, default=2, help='Time to shift artefact position from nominal.')
 
     group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping)')
     group.add_argument('--backup_hdf5',
