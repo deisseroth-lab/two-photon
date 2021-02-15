@@ -4,13 +4,13 @@
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --run_suite2p
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --run_suite2p --prev_recording 20200310M88:regL23-000
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_output
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_output --ETL_depths=30_0_30
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_data
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_hdf5
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:VRmm-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess --run_suite2p --backup_output --backup_data --zip_data
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess --run_suite2p --prev_recording 202003M89:regL23-000
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip --preprocess --run_suite2p --prev_recording 20200325M89:VRmm-000 --backup_output --backup_data
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip --preprocess --settle_time --backup_output
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip --preprocess --settle_time=5 --backup_output
 
 import argparse
 from datetime import datetime
@@ -112,7 +112,7 @@ def main():
         fname_hdf5 = dirname_hdf5 / 'data' / 'data.h5'
         if args.preprocess:
             preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected_hdf5, fname_hdf5, mdata,
-                       args.artefact_buffer*mdata['period'], args.artefact_shift*mdata['period'], args.channel, stim_channel_name, args.settle_time)
+                       args.artefact_buffer*mdata['period']*1000/mdata['size']['y_px'], args.artefact_shift*mdata['period'], args.channel, stim_channel_name, args.settle_time)
         if args.run_suite2p:
             data_files = []
             for prev_recording in args.prev_recording:
@@ -143,7 +143,7 @@ def main():
             backup(trial_order_path,dirname_backup / 'trial_order')
             # backup_pattern(slm_root, slm_trial_order_pattern, dirname_backup / 'trial_order')
 
-        backup_done_file = args.backup_dir / 'backup_done' / f'{session_name}_{recording_name}.backup_done'
+        backup_done_file = args.backup_dir / 'backup_done' / f'{session_name}_{recording_name}_ETL{args.ETL_depths}.backup_done'
         backup_done_file.parent.mkdir(parents=True, exist_ok=True)
         logger.info('Creating backup_done file: %s', backup_done_file)
         backup_done_file.touch()
@@ -313,8 +313,8 @@ def parse_args():
         default=0,
         help='Amount of time at the beginning of an aquisition window to ignore while the hardware is settling.')
     
-    group.add_argument('--artefact_buffer', type=float, default=35, help='Time to exclude following calculated artefact')
-    group.add_argument('--artefact_shift', type=float, default=2, help='Time to shift artefact position from nominal.')
+    group.add_argument('--artefact_buffer', type=float, default=20, help='Pixel rows to exclude following calculated artefact, will be converted into ms later')
+    group.add_argument('--artefact_shift', type=float, default=1, help='Pixel rows to shift artefact position from nominal, will be converted into ms later')
 
     group.add_argument('--backup_data', action='store_true', help='Backup all input data (post-ripping)')
     group.add_argument('--backup_hdf5',
@@ -322,6 +322,10 @@ def parse_args():
                        help='Backup hdf5 formatted data (with and without artefact removal)')
     group.add_argument('--backup_output', action='store_true', help='Backup all output processing')
     group.add_argument('--backup_dir', type=pathlib.Path, default='', help='Remote dirname to sync results to.')
+    group.add_argument('--ETL_depths',
+                       type=str,
+                       help=('ETL depth for each plane in um, separated by _, only used for .backup_done file name '
+                             'e.g. -30_0_30'))
 
     # Temporary argument for testing.  If it works, leave it on by default and remove flag.
     group.add_argument('--zip_data',
