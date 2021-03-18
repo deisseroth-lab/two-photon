@@ -41,7 +41,7 @@ while (( i < xvfb_display_max )); do
     # --name 
     # https://github.com/scottyhardy/docker-wine/blob/master/docker-wine
     exec docker run \
-        -it \
+        -i \
         --rm \
         --volume=${2}:/data \
         --env=USER_NAME=${USER} \
