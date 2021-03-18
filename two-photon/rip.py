@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # Ripping process does not end cleanly, so the filesystem is polled to detect the
 # processing finishing.  The following variables relate to the timing of that polling
 # process.
-RIP_TOTAL_WAIT_SECS = 3600  # Total time to wait for ripping before killing it.
+RIP_TOTAL_WAIT_SECS = 86400  # Total time to wait for ripping before killing it.
 RIP_EXTRA_WAIT_SECS = 10  # Extra time to wait after ripping is detected to be done.
 RIP_POLL_SECS = 10  # Time to wait between polling the filesystem.
 

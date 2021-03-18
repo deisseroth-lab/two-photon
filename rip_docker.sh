@@ -55,7 +55,7 @@ while (( i < xvfb_display_max )); do
         --env=XVFB_RESOLUTION=320x240x8 \
         --env=DISPLAY=:$i \
         --hostname=bruker-ripper \
-        --name=bruker-ripper \
+        --name=bruker-ripper-$i \
         --shm-size=1g \
         --env=TZ=America/Los_Angeles \
         ${1}
