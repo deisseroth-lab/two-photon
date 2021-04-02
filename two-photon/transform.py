@@ -45,7 +45,7 @@ def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None):
 
             logger.info('Writing corrected data to %s', fname_data)
             with h5py.File(fname_uncorrected, 'r') as hfile:
-                arr = da.from_array(hfile[HDF5_KEY])
+                arr = da.from_array(hfile[HDF5_KEY], chunks=('auto', -1, -1, -1))
                 # Depth of 1 in the first coordinate means to bring in the frames before and after
                 # the chunk -- needed for doing diffs.
                 depth = (1, 0, 0, 0)
