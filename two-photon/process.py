@@ -156,8 +156,7 @@ def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fna
                stim_channel_name, settle_time):
     """Main method for running processing of TIFF files into HDF5."""
     size = mdata['size']
-
-    df_voltage = pd.read_csv(fname_csv, index_col='Time(ms)', skipinitialspace=True)
+    df_voltage = pd.read_csv(fname_csv, skipinitialspace=True)
     logger.info('Read voltage recordings from: %s, preview:\n%s', fname_csv, df_voltage.head())
     fname_frame_start = dirname_output / 'frame_start.h5'
     frame_start = artefacts.get_frame_start(df_voltage, fname_frame_start)
@@ -246,8 +245,9 @@ def run_suite2p(hdf5_list, dirname_output, mdata):
     fs_param = 1. / (mdata['period'] * z_planes)
 
     # Load suite2p only right before use, as it has a long load time.
+    import suite2p
     from suite2p import run_s2p
-    default_ops = run_s2p.default_ops()
+    default_ops = suite2p.default_ops()
     params = {
         'input_format': 'h5',
         'data_path': [str(f.parent) for f in hdf5_list],
@@ -264,7 +264,7 @@ def run_suite2p(hdf5_list, dirname_output, mdata):
     logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in hdf5_list), params)
     with open(dirname_output / 'recording_order.json', 'w') as fout:
         json.dump([str(e) for e in hdf5_list], fout, indent=4)
-    run_s2p.run_s2p(ops=default_ops, db=params)
+    run_s2p(ops=default_ops, db=params)
 
 
 def parse_args():
