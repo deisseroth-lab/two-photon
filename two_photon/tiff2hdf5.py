@@ -10,6 +10,7 @@ import click
 import dask.array as da
 import h5py
 import tifffile
+import zarr
 
 logger = logging.getLogger(__name__)
 
@@ -37,21 +38,30 @@ def tiff2hdf5(ctx, channel):
 
     # To load OME tiff stacks, it suffices to load just the first file, which contains
     # metadata to allow the tifffile to load the entire stack.
-    tiff_init = tiff_file.glob(TIFF_GLOB_INIT.format(channel=channel))
+    tiff_glob = TIFF_GLOB_INIT.format(channel=channel)
+    tiff_init = list(tiff_path.glob(tiff_glob))
     if len(tiff_init) != 1:
-        raise Tiff2Hdf5Error('Expected one initial tifffile, found: %s', tiff_glob)
+        raise Tiff2Hdf5Error('Expected one initial tifffile, found: %s.  Pattern: %s' % (tiff_init, tiff_path /tiff_glob))
     tiff_init = tiff_init[0]
 
     logger.info('Reading TIFF files')
-    try:
-        data = tifffile.imread(tiff_init, aszarr=True)  # aszarr is lazy and dask-compatible
-    except TypeError:  # Error generated when file does not exist (why not FileNotFound?)
-        raise Tiff2Hdf5Error('Error reading input tiff file.  Make sure file exists and is readable:\n%s' % tiff_init)
+    zarr_store = tifffile.imread(tiff_init, aszarr=True)
+    data = zarr.open(zarr_store, mode='r')
     logger.info('Found TIFF data with shape %s and type %s', data.shape, data.dtype)
 
-    logger.info('Writing data to hdf5')
-    chunks = ('auto', -1, -1, -1)  # (time, z, y, x)
+    # TODO: This is a guess on what the axes will be. Find out if there is metadata with 
+    # axes naming.
+    if data.ndim == 4: # (time, z, y, x)
+        logging.info('Assuming axes are time, z, y, x')
+        chunks = ('auto', -1, -1, -1)  
+    elif data.ndim == 3: # (time, y, x)
+        logging.info('Assuming axes are time, y, x')
+        chunks = ('auto', -1, -1)  
+    else:
+        chunks = -1
     data_dask = da.from_array(data, chunks=chunks)
+
+    logger.info('Writing data to hdf5: %s' % orig_hdf5_path)
     da.to_hdf5(orig_hdf5_path, hdf5_key, data_dask)
     logger.info('Done writing hdf5')
 

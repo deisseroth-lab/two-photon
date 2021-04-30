@@ -10,12 +10,13 @@ dependencies:
   - numpy=1.19.1
   - pandas=1.0.5
   - pip=20.1.1
+  - pyqt=5.12.3
   - pytables=3.6.1
-  - python=3.8.5
+  - python=3.7.10
   - scikit-image=0.17.2
   - scipy=1.5.2
   - tifffile=2021.4.8
-  - yapf
+  - zarr=2.8.1
   - pip:
-      - suite2p==0.7.5
+      - suite2p[gui,nwb]==0.10.0
       - click-pathlib==2020.3.13.0
