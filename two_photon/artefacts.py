@@ -1,7 +1,6 @@
 """Library for determining artefact locations in a 2p dataset."""
 
 import logging
-import pdb
 
 import numpy as np
 import pandas as pd
@@ -68,7 +67,7 @@ def get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
     ):
         if (ix_start_cyc == ix_stop_cyc) and (ix_start_z == ix_stop_z):
             # If a single-frame stim begins+ends during stim, skip it
-            if y_min == y_maxa:
+            if y_min == y_max:
                 continue
             frame.append(ix_start_cyc)
             z_plane.append(ix_start_z)

@@ -1,14 +1,10 @@
 """Script to convert Bruker OME TIFF stack to hdf5."""
 
-import argparse
 import logging
 import os
-import pathlib
-import re
 
 import click
 import dask.array as da
-import h5py
 import tifffile
 import zarr
 

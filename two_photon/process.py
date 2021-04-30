@@ -19,13 +19,11 @@ import logging
 import os
 import pathlib
 import platform
-import re
 import subprocess
 from datetime import datetime
 
 import artefacts
 import metadata
-import numpy as np
 import pandas as pd
 import rip
 import tiffdata

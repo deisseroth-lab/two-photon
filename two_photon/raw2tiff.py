@@ -139,7 +139,7 @@ def raw2tiff(ctx, ripper, rippers_path):
         timeout_sec = 5
         p_sec = 0
         for _ in range(timeout_sec):
-            if process.poll() == None:
+            if process.poll() is None:
                 time.sleep(1)
                 p_sec += 1
         if p_sec >= timeout_sec:
