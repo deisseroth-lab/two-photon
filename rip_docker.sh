@@ -8,10 +8,19 @@
 # TODO: For the common case of batch running, investigate eliminating entrypoint script 
 # and many of these variables.
 
-if [ "$#" -ne 2 ]; then
-    echo "Requires two arguments: name of the Docker image and the location containing RAWDATA and FileList files"
+set -e
+
+if [ "$#" -ne 3 ]; then
+    echo "Requires two arguments: name of the Docker image, path containing RAWDATA and FileList files, and output path"
     exit -1
 fi
+
+if [ ! -d "${2}" ]; then
+    echo "Input directory missing: ${2}"
+    exit -2
+fi
+
+mkdir -p "${3}"
 
 # Flags determined by examining docker-wine with:
 # --as-me
@@ -23,6 +32,7 @@ docker run \
        -it \
        --rm \
        --volume=${2}:/data \
+       --volume=${3}:/output \
        --env=USER_NAME=${USER} \
        --env=USER_UID=$(id -u ${USER}) \
        --env=USER_GID=$(id -g ${USER}) \

@@ -6,6 +6,7 @@ import logging
 import pathlib
 import platform
 import re
+import shutil
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -44,16 +45,40 @@ def determine_ripper(data_dir, ripper_dir):
     return ripper
 
 
-def raw_to_tiff(dirname, ripper):
+def raw_to_tiff(in_path, out_path, ripper):
     """Convert Bruker RAW files to TIFF files using ripping utility specified with `ripper`."""
+    # Bruker software appends the in_path basename to the given output directory.
+    out_path_final = out_path / in_path.name
+        
     def get_filelists():
-        return list(sorted(dirname.glob('*Filelist.txt')))
-
+        filelists = list(sorted(in_path.glob('*Filelist.txt')))
+        logging.info('  Found filelists: %s', [str(f) for f in filelists])
+        return filelists
+    
     def get_rawdata():
-        return list(sorted(dirname.glob('*RAWDATA*')))
+        rawdata = list(sorted(in_path.glob('*RAWDATA*')))
+        logging.info('  Found # rawdata files: %s', len(rawdata))
+        return rawdata
 
     def get_tiffs():
-        return set(dirname.glob('*.ome.tif'))
+        tiffs = set(out_path_final.glob('*.ome.tif'))
+        logging.info('  Found # tiff files: %s', len(tiffs))
+        return tiffs
+    
+    def copy_back_files():
+        """Copies back metadata files that Bruker copied to output directory.
+        
+        This helps preserve the input directory contents.
+        """
+        paths_to_copy = [path for path in out_path_final.iterdir()
+                         if not path.name.endswith('ome.tif')]
+        logging.info('Copying back files to input directory: %s', paths_to_copy)
+        for path in paths_to_copy:
+            if path.is_file():
+                shutil.copy(path, in_path)
+            else:
+                shutil.copytree(path, in_path / path.name)
+        
 
     filelists = get_filelists()
     if not filelists:
@@ -61,13 +86,13 @@ def raw_to_tiff(dirname, ripper):
 
     rawdata = get_rawdata()
     if not rawdata:
-        raise RippingError('No RAWDATA files present in %s' % dirname)
+        raise RippingError('No RAWDATA files present in %s' % in_path)
 
     tiffs = get_tiffs()
     if tiffs:
-        raise RippingError('Cannot rip because tiffs already exist in %s (%d found)' % (dirname, len(tiffs)))
+        raise RippingError('Cannot rip because tiffs already exist in %s (%d found)' % (in_path, len(tiffs)))
 
-    logger.info('Ripping from:\n %s\n %s', '\n '.join([str(f) for f in filelists]),
+    logger.info('Ripping using:\n %s\n %s', '\n '.join([str(f) for f in filelists]),
                 '\n '.join([str(f) for f in rawdata]))
 
     system = platform.system()
@@ -80,21 +105,23 @@ def raw_to_tiff(dirname, ripper):
     # we have to pop up one level and use -AddRawFileWithSubFolders.
     cmd += [
         ripper,
+        '-KeepRaw',
+        '-DoNotRipToInputDirectory',
         '-IncludeSubFolders',
         '-AddRawFileWithSubFolders',
-        str(dirname),
+        str(in_path),
         '-SetOutputDirectory',
-        str(dirname),
+        str(out_path),
         '-Convert',
     ]
-
+    
     # Run a subprocess to execute the ripping.  Note this is non-blocking because the
-    # ripper never exists.  (If we blocked waiting for it, we'd wait forever.)  Instead,
-    # we wait for the input files to be consumed and/or output files to be finished.
+    # ripper never exits.  (If we blocked waiting for it, we'd wait forever.)  Instead,
+    # we wait for the output files to be finished.
     process = subprocess.Popen(cmd)
 
     # Register a cleanup function that will kill the ripping subprocess.  This handles the cases
-    # where someone hits Cntrl-C, or the main program exits for some other reason.  Without
+    # where someone hits Control-C, or the main program exits for some other reason.  Without
     # this cleanup function, the subprocess will just continue running in the background.
     def cleanup():
         timeout_sec = 5
@@ -109,7 +136,7 @@ def raw_to_tiff(dirname, ripper):
 
     atexit.register(cleanup)
 
-    # Wait for the file list and raw data to disappear
+    # Wait for the tiff files to stop changing.
     remaining_sec = RIP_TOTAL_WAIT_SECS
     last_tiffs = {}
     while remaining_sec >= 0:
@@ -117,26 +144,20 @@ def raw_to_tiff(dirname, ripper):
         remaining_sec -= RIP_POLL_SECS
         time.sleep(RIP_POLL_SECS)
 
-        filelists = get_filelists()
-        rawdata = get_rawdata()
-
         tiffs = get_tiffs()
         tiffs_changed = (last_tiffs != tiffs)
         last_tiffs = tiffs
 
-        logging.info('  Found filelist files: %s', filelists or None)
-        logging.info('  Found rawdata files: %s', rawdata or None)
-        logging.info('  Found this many tiff files: %s', len(tiffs))
-
-        if not filelists and not rawdata and not tiffs_changed:
+        if not tiffs_changed:
             logging.info('Detected ripping is complete')
             time.sleep(RIP_EXTRA_WAIT_SECS)  # Wait before terminating ripper, just to be safe.
             logging.info('Killing ripper')
             process.kill()
             logging.info('Ripper has been killed')
+            copy_back_files()
             return
 
-    raise RippingError('Killed ripper because it did not finish within %s seconds' % RIP_TOTAL_WAIT_SECS)
+    raise RippingError('Killing ripper because it did not finish within %s seconds' % RIP_TOTAL_WAIT_SECS)
 
 
 if __name__ == "__main__":
@@ -144,14 +165,18 @@ if __name__ == "__main__":
                         format='%(asctime)s.%(msecs)03d %(module)s:%(lineno)s %(levelname)s %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S')
     parser = argparse.ArgumentParser(description='Preprocess 2-photon raw data into individual tiffs')
-    parser.add_argument('--directory',
+    parser.add_argument('--in_path',
                         type=pathlib.Path,
                         required=True,
                         help='Directory containing RAWDATA and Filelist.txt files for ripping')
-    parser.add_argument('--rippers_directory',
+    parser.add_argument('--out_path',
                         type=pathlib.Path,
-                        default='/apps',
-                        help='Directory container versions of Bruker Image Block Ripping Utility.')
+                        required=True,
+                        help='Directory for output tiff stack.')
+    parser.add_argument('--rippers_path',
+                        type=pathlib.Path,
+                        required=True,
+                        help='Directory containing versions of Bruker Image Block Ripping Utility.')
     args = parser.parse_args()
-    ripper_path = determine_ripper(args.directory, args.rippers_directory)
-    raw_to_tiff(args.directory, ripper_path)
+    ripper_path = determine_ripper(args.in_path, args.rippers_path)
+    raw_to_tiff(args.in_path, args.out_path, ripper_path)
