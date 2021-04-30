@@ -11,16 +11,16 @@ logger = logging.getLogger(__file__)
 
 def read(base, size, layout, channel):
     """Read 2p dataset of TIFF files into a dask.Array."""
-    shape_yx = (size['y_px'], size['x_px'])
+    shape_yx = (size["y_px"], size["x_px"])
     dtype = read_file(base, 0, channel, 0).dtype
 
-    num_cycles = layout['sequences']
+    num_cycles = layout["sequences"]
     frames_are_z = num_cycles == 1
 
     data_cycles = []
     for cycle in range(num_cycles):
         data_frames = []
-        for frame in range(layout['frames_per_sequence']):
+        for frame in range(layout["frames_per_sequence"]):
 
             # Reading the first OME TIFF file is slow, so we substitute the following frame/cycle:
             # - use the next frame if a single-cycle where frames are z-planes
@@ -40,13 +40,17 @@ def read(base, size, layout, channel):
     if frames_are_z:
         data = data.swapaxes(0, 1)
 
-    logger.info('Found data with shape(frames, z_planes, y_pixels, x_pixels): %s', data.shape)
+    logger.info(
+        "Found data with shape(frames, z_planes, y_pixels, x_pixels): %s", data.shape
+    )
     return data
 
 
 def read_file(base, cycle, channel, frame):
     """Read in one TIFF file."""
-    fname = str(base) + f'_Cycle{cycle+1:05d}_Ch{channel}_{frame+1:06d}.ome.tif'
+    fname = str(base) + f"_Cycle{cycle+1:05d}_Ch{channel}_{frame+1:06d}.ome.tif"
     with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", "invalid value encountered in true_divide", RuntimeWarning)
+        warnings.filterwarnings(
+            "ignore", "invalid value encountered in true_divide", RuntimeWarning
+        )
         return imread(fname)

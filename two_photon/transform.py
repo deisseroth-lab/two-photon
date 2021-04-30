@@ -4,12 +4,12 @@ import logging
 import os
 
 import dask.array as da
-from dask import diagnostics
 import h5py
+from dask import diagnostics
 
 logger = logging.getLogger(__name__)
 
-HDF5_KEY = '/data'  # Default key name in Suite2P.
+HDF5_KEY = "/data"  # Default key name in Suite2P.
 
 
 # In python 3.8:
@@ -25,11 +25,12 @@ def unlink(fname):
 def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None):
     """Convert TIFF files from 2p dataset in HDF5.  Optionally create artefact-removed dataset."""
     # Important: code expects no chunking in z, y, z -- need to have -1 for these dimensions.
-    data = data.rechunk((64, -1, -1, -1))  # 64 frames will be processed together for artefact removal.
+    # 64 frames will be processed together for artefact removal.
+    data = data.rechunk((64, -1, -1, -1))
 
     with diagnostics.ProgressBar():
         if df_artefacts is None:
-            logger.info('Writing data to %s', fname_data)
+            logger.info("Writing data to %s", fname_data)
             unlink(fname_data)
             os.makedirs(fname_data.parent, exist_ok=True)
             data.to_hdf5(fname_data, HDF5_KEY)
@@ -38,22 +39,24 @@ def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None):
             # written to the first.  Ideally, both would be written simultaneously, but
             # that cannot be done using dask.  Instead, the 1st file is written and then
             # read back to write the 2nd one.
-            logger.info('Writing uncorrected data to %s', fname_uncorrected)
+            logger.info("Writing uncorrected data to %s", fname_uncorrected)
             unlink(fname_uncorrected)
             os.makedirs(fname_uncorrected.parent, exist_ok=True)
             data.to_hdf5(fname_uncorrected, HDF5_KEY)
 
-            logger.info('Writing corrected data to %s', fname_data)
-            with h5py.File(fname_uncorrected, 'r') as hfile:
+            logger.info("Writing corrected data to %s", fname_data)
+            with h5py.File(fname_uncorrected, "r") as hfile:
                 arr = da.from_array(hfile[HDF5_KEY])
                 # Depth of 1 in the first coordinate means to bring in the frames before and after
                 # the chunk -- needed for doing diffs.
                 depth = (1, 0, 0, 0)
-                data_corrected = arr.map_overlap(remove_artefacts,
-                                                 depth=depth,
-                                                 dtype=data.dtype,
-                                                 df=df_artefacts,
-                                                 mydepth=depth)
+                data_corrected = arr.map_overlap(
+                    remove_artefacts,
+                    depth=depth,
+                    dtype=data.dtype,
+                    df=df_artefacts,
+                    mydepth=depth,
+                )
                 unlink(fname_data)
                 os.makedirs(fname_data.parent, exist_ok=True)
                 data_corrected.to_hdf5(fname_data, HDF5_KEY)
@@ -62,10 +65,10 @@ def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None):
 def remove_artefacts(chunk, df, mydepth, block_info):
     """Remove artefacts from a chunk representing a set of frames."""
     chunk = chunk.copy()
-    frame_min, frame_max = block_info[0]['array-location'][0]
+    frame_min, frame_max = block_info[0]["array-location"][0]
 
     # The array-location is not the frame number -- it is offset by depth when using map_overlap.
-    frame_chunk = block_info[0]['chunk-location'][0]
+    frame_chunk = block_info[0]["chunk-location"][0]
     frame_offset = mydepth[0] * (1 + 2 * frame_chunk)
     frame_min -= frame_offset
     frame_max -= frame_offset

@@ -1,44 +1,55 @@
 """Library for determining artefact locations in a 2p dataset."""
 
 import logging
+import pdb
 
 import numpy as np
 import pandas as pd
-import pdb
+
 logger = logging.getLogger(__file__)
 
 
 def get_frame_start(df_voltage, fname):
-    frame_start_cat = df_voltage['frame starts'].apply(lambda x: 1 if x > 1 else 0)
+    frame_start_cat = df_voltage["frame starts"].apply(lambda x: 1 if x > 1 else 0)
     frame_start = frame_start_cat[frame_start_cat.diff() > 0.5].index
-    frame_start.to_series().to_hdf(fname, 'frame_start', mode='a')
-    logger.info('Stored calculated frame starts in %s, preview:\n%s', fname, frame_start[:5])
+    frame_start.to_series().to_hdf(fname, "frame_start", mode="a")
+    logger.info(
+        "Stored calculated frame starts in %s, preview:\n%s", fname, frame_start[:5]
+    )
     return frame_start
 
 
-def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname, buffer, shift, settle_time):
+def get_bounds(
+    df_voltage, frame_start, size, stim_channel_name, fname, buffer, shift, settle_time
+):
     """From a dataframe of experiment timings, return a dataframe of artefact locations in the data."""
-    logger.info('Calculating artefact regions')
+    logger.info("Calculating artefact regions")
 
-    shape = (size['frames'], size['z_planes'])
+    shape = (size["frames"], size["z_planes"])
     n_frames = shape[0] * shape[1]
     frame_start = frame_start[0:n_frames]
-    y_px = size['y_px']
+    y_px = size["y_px"]
 
     stim = df_voltage[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
     stim_start = stim[stim.diff() > 0.5].index + shift
     stim_stop = stim[stim.diff() < -0.5].index + shift + buffer
 
-    frame, z_plane, y_px_start, y_px_stop = get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
+    frame, z_plane, y_px_start, y_px_stop = get_start_stop(
+        stim_start, stim_stop, frame_start, y_px, shape, settle_time
+    )
 
-    df = pd.DataFrame({'frame': frame, 'z_plane': z_plane, 'y_min': y_px_start, 'y_max': y_px_stop})
-    df = df.set_index('frame')
-    df.to_hdf(fname, 'data', mode='w')
+    df = pd.DataFrame(
+        {"frame": frame, "z_plane": z_plane, "y_min": y_px_start, "y_max": y_px_stop}
+    )
+    df = df.set_index("frame")
+    df.to_hdf(fname, "data", mode="w")
 
-    stim_start.to_series().to_hdf(fname, 'stim_start', mode='a')
-    stim_stop.to_series().to_hdf(fname, 'stim_stop', mode='a')
+    stim_start.to_series().to_hdf(fname, "stim_start", mode="a")
+    stim_stop.to_series().to_hdf(fname, "stim_stop", mode="a")
 
-    logger.info('Stored calculated artefact positions in %s, preview:\n%s', fname, df.head())
+    logger.info(
+        "Stored calculated artefact positions in %s, preview:\n%s", fname, df.head()
+    )
     return df
 
 
@@ -52,10 +63,12 @@ def get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
     z_plane = []
     y_px_start = []
     y_px_stop = []
-    for (ix_start_cyc, ix_start_z), (ix_stop_cyc, ix_stop_z), y_min, y_max in zip(ix_start, ix_stop, y_off_start,
-                                                                                  y_off_stop):
+    for (ix_start_cyc, ix_start_z), (ix_stop_cyc, ix_stop_z), y_min, y_max in zip(
+        ix_start, ix_stop, y_off_start, y_off_stop
+    ):
         if (ix_start_cyc == ix_stop_cyc) and (ix_start_z == ix_stop_z):
-            if y_min == y_max:  # If a single-frame stim begins+ends during stim, skip it
+            # If a single-frame stim begins+ends during stim, skip it
+            if y_min == y_maxa:
                 continue
             frame.append(ix_start_cyc)
             z_plane.append(ix_start_z)
@@ -81,7 +94,7 @@ def get_loc(times, frame_start, y_px, shape, settle_time):
     indices = interp.astype(np.int)
     idx = np.transpose(np.unravel_index(indices, shape))
 
-    frame_times = (frame_start[1:] - frame_start[:-1])
+    frame_times = frame_start[1:] - frame_start[:-1]
     frame_times_stims = frame_times[indices]
 
     offset = (interp - indices) * frame_times_stims
