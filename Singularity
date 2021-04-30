@@ -1,4 +1,4 @@
-# Singularity recipe file for d-lab two-photon container.
+# Singularity recipe file for d-lab bruker-rip container.
 
 bootstrap: docker-daemon
 from: scr.svc.stanford.edu/deisseroth-lab/bruker-rip:latest
@@ -7,9 +7,9 @@ from: scr.svc.stanford.edu/deisseroth-lab/bruker-rip:latest
   First build the docker container:
     docker build -t scr.svc.stanford.edu/deisseroth-lab/bruker-rip:latest .
   Then build this file (assumes root as build directory):
-    sudo singularity build two-photon.sif Singularity
+    sudo singularity build bruker-rip.sif Singularity
   And run the rip script!
-    singularity run --bind=/path/to/your/data:/data two-photon.sif
+    singularity run --bind=/path/to/top-level:/data bruker-rip.sif
 
 %runscript
   /bin/bash /apps/runscript.sh
