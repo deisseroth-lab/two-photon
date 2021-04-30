@@ -66,15 +66,6 @@ def read(basename_input, dirname_output):
     frame_period = state_value('framePeriod', float)
     optical_zoom = state_value('opticalZoom', float)
 
-    voltage_root = ElementTree.parse(fname_vr_xml).getroot()
-
-    channels = {}
-    for signal in voltage_root.findall('Experiment/SignalList/VRecSignal'):
-        channel_num = int(signal.find('Channel').text)
-        channel_name = signal.find('Name').text
-        enabled = signal.find('Enabled').text == 'true'
-        channels[channel_num] = {'name': channel_name, 'enabled': enabled}
-
     metadata = {
         'layout': {
             'sequences': num_sequences,
@@ -93,8 +84,17 @@ def read(basename_input, dirname_output):
         },
         'period': frame_period,
         'optical_zoom': optical_zoom,
-        'channels': channels,
     }
+
+    if fname_vr_xml.exists():
+        voltage_root = ElementTree.parse(fname_vr_xml).getroot()
+        channels = {}
+        for signal in voltage_root.findall('Experiment/SignalList/VRecSignal'):
+            channel_num = int(signal.find('Channel').text)
+            channel_name = signal.find('Name').text
+            enabled = signal.find('Enabled').text == 'true'
+            channels[channel_num] = {'name': channel_name, 'enabled': enabled}
+        metadata['channels'] = channels
 
     with open(fname_metadata, 'w') as fout:
         json.dump(metadata, fout, indent=4, sort_keys=True)

@@ -3,6 +3,7 @@
 import argparse
 import atexit
 import logging
+import os
 import pathlib
 import platform
 import re
@@ -10,6 +11,9 @@ import shutil
 import subprocess
 import time
 import xml.etree.ElementTree as ET
+
+import click
+from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 
 logger = logging.getLogger(__name__)
 
@@ -24,44 +28,38 @@ RIP_POLL_SECS = 10  # Time to wait between polling the filesystem.
 class RippingError(Exception):
     """Error raised if problems encountered during data conversion."""
 
+@click.command()
+@click.pass_context
+@optgroup.group('Ripper Configuration', cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option('--ripper', type=pathlib.Path,
+                 help='Path to a specific Image Block Rippint Utility executable.')
+@optgroup.option('--rippers_path', type=pathlib.Path,
+                 help='Directory containing versions of Bruker Image Block Ripping Utility. '
+                 'The ripper will be selected corresponding to the version of data being converted.')
+def raw2tiff(ctx, ripper, rippers_path):
+    """Convert Bruker RAW files to TIFF files via ripper."""
+    raw_path = ctx.obj['raw_path']
+    tiff_path = ctx.obj['tiff_path']
 
-def determine_ripper(data_dir, ripper_dir):
-    """Determine which version of the Prairie View ripper to use based on reading metadata."""
-    env_files = list(data_dir.glob('*.env'))
-    if len(env_files) != 1:
-        raise RippingError('Only expected 1 env file in %s, but found: %s' % (data_dir, env_files))
+    # Bruker software appends the raw_path basename to the given output directory.
+    tiff_path_bruker = tiff_path / raw_path.name
+    os.makedirs(tiff_path_bruker, exist_ok=True)
 
-    tree = ET.parse(str(data_dir / env_files[0]))
-    root = tree.getroot()
-    version = root.attrib['version']
-
-    # Prairie View versions are given in the form A.B.C.D.
-    match = re.match(r'^(?P<majmin>\d+\.\d+)\.\d+\.\d+$', version)
-    if not match:
-        raise RippingError('Could not parse version (expected A.B.C.D): %s' % version)
-    version = match.group('majmin')
-    ripper = ripper_dir / f'Prairie View {version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
-    logger.info('Data created with Prairie version %s, using ripper: %s', version, ripper)
-    return ripper
-
-
-def raw_to_tiff(in_path, out_path, ripper):
-    """Convert Bruker RAW files to TIFF files using ripping utility specified with `ripper`."""
-    # Bruker software appends the in_path basename to the given output directory.
-    out_path_final = out_path / in_path.name
+    if ripper is None:
+        ripper = determine_ripper(raw_path, rippers_path)
         
     def get_filelists():
-        filelists = list(sorted(in_path.glob('*Filelist.txt')))
+        filelists = list(sorted(raw_path.glob('*Filelist.txt')))
         logging.info('  Found filelists: %s', [str(f) for f in filelists])
         return filelists
     
     def get_rawdata():
-        rawdata = list(sorted(in_path.glob('*RAWDATA*')))
+        rawdata = list(sorted(raw_path.glob('*RAWDATA*')))
         logging.info('  Found # rawdata files: %s', len(rawdata))
         return rawdata
 
     def get_tiffs():
-        tiffs = set(out_path_final.glob('*.ome.tif'))
+        tiffs = set(tiff_path_bruker.glob('*.ome.tif'))
         logging.info('  Found # tiff files: %s', len(tiffs))
         return tiffs
     
@@ -70,14 +68,14 @@ def raw_to_tiff(in_path, out_path, ripper):
         
         This helps preserve the input directory contents.
         """
-        paths_to_copy = [path for path in out_path_final.iterdir()
+        paths_to_copy = [path for path in tiff_path_bruker.iterdir()
                          if not path.name.endswith('ome.tif')]
         logging.info('Copying back files to input directory: %s', paths_to_copy)
         for path in paths_to_copy:
             if path.is_file():
-                shutil.copy(path, in_path)
+                shutil.copy(path, raw_path)
             else:
-                shutil.copytree(path, in_path / path.name)
+                shutil.copytree(path, raw_path / path.name)
         
 
     filelists = get_filelists()
@@ -86,11 +84,11 @@ def raw_to_tiff(in_path, out_path, ripper):
 
     rawdata = get_rawdata()
     if not rawdata:
-        raise RippingError('No RAWDATA files present in %s' % in_path)
+        raise RippingError('No RAWDATA files present in %s' % raw_path)
 
     tiffs = get_tiffs()
     if tiffs:
-        raise RippingError('Cannot rip because tiffs already exist in %s (%d found)' % (in_path, len(tiffs)))
+        raise RippingError('Cannot rip because tiffs already exist in %s (%d found)' % (raw_path, len(tiffs)))
 
     logger.info('Ripping using:\n %s\n %s', '\n '.join([str(f) for f in filelists]),
                 '\n '.join([str(f) for f in rawdata]))
@@ -109,9 +107,9 @@ def raw_to_tiff(in_path, out_path, ripper):
         '-DoNotRipToInputDirectory',
         '-IncludeSubFolders',
         '-AddRawFileWithSubFolders',
-        str(in_path),
+        str(raw_path),
         '-SetOutputDirectory',
-        str(out_path),
+        str(tiff_path),
         '-Convert',
     ]
     
@@ -148,35 +146,35 @@ def raw_to_tiff(in_path, out_path, ripper):
         tiffs_changed = (last_tiffs != tiffs)
         last_tiffs = tiffs
 
-        if not tiffs_changed:
+        if tiffs and not tiffs_changed:
             logging.info('Detected ripping is complete')
             time.sleep(RIP_EXTRA_WAIT_SECS)  # Wait before terminating ripper, just to be safe.
             logging.info('Killing ripper')
             process.kill()
             logging.info('Ripper has been killed')
             copy_back_files()
+            
+            logging.info('Done')
             return
 
     raise RippingError('Killing ripper because it did not finish within %s seconds' % RIP_TOTAL_WAIT_SECS)
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s.%(msecs)03d %(module)s:%(lineno)s %(levelname)s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S')
-    parser = argparse.ArgumentParser(description='Preprocess 2-photon raw data into individual tiffs')
-    parser.add_argument('--in_path',
-                        type=pathlib.Path,
-                        required=True,
-                        help='Directory containing RAWDATA and Filelist.txt files for ripping')
-    parser.add_argument('--out_path',
-                        type=pathlib.Path,
-                        required=True,
-                        help='Directory for output tiff stack.')
-    parser.add_argument('--rippers_path',
-                        type=pathlib.Path,
-                        required=True,
-                        help='Directory containing versions of Bruker Image Block Ripping Utility.')
-    args = parser.parse_args()
-    ripper_path = determine_ripper(args.in_path, args.rippers_path)
-    raw_to_tiff(args.in_path, args.out_path, ripper_path)
+def determine_ripper(raw_path, rippers_path):
+    """Determine which version of the Prairie View ripper to use based on reading metadata."""
+    env_files = list(raw_path.glob('*.env'))
+    if len(env_files) != 1:
+        raise RippingError('Only expected 1 env file in %s, but found: %s' % (raw_path, env_files))
+
+    tree = ET.parse(str(raw_path / env_files[0]))
+    root = tree.getroot()
+    version = root.attrib['version']
+
+    # Prairie View versions are given in the form A.B.C.D.
+    match = re.match(r'^(?P<majmin>\d+\.\d+)\.\d+\.\d+$', version)
+    if not match:
+        raise RippingError('Could not parse version (expected A.B.C.D): %s' % version)
+    version = match.group('majmin')
+    ripper = rippers_path / f'Prairie View {version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
+    logger.info('Data created with Prairie version %s, using ripper: %s', version, ripper)
+    return ripper

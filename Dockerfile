@@ -23,9 +23,6 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
     echo "conda activate base" >> ~/.bashrc
 
-COPY ["Prairie View 5.4/", "/apps/Prairie View 5.4/"]
-COPY ["Prairie View 5.5/", "/apps/Prairie View 5.5/"]
-
 # Environment is ~700 MB
 COPY environment.yml .
 RUN conda env update --quiet --name base --file environment.yml \
@@ -36,4 +33,5 @@ COPY runscript.sh /apps/runscript.sh
 CMD /apps/runscript.sh
 
 # Copy code last to avoid busting the cache.
-COPY two-photon/*.py /apps/two-photon/
+COPY . /apps/two-photon/
+RUN pip install /apps/two-photon

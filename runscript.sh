@@ -18,4 +18,4 @@ cp -r /home/wineuser/.wine "${WINEPREFIX}"
 
 echo "Executing rip. One err and four fixme statements are OK."
 echo
-${CMDPREFIX} /usr/bin/python3 /apps/two-photon/rip.py --in_path /data --out_path /output --rippers_path /apps "$@"
+${CMDPREFIX} two-photon --directory /data raw2tiff --rippers_path /apps/two-photon "$@"

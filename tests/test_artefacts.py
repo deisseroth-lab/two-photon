@@ -1,5 +1,6 @@
-import artefacts
 import numpy as np
+
+from two_photon import artefacts
 
 
 def test_get_start_stop():

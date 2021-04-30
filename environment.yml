@@ -3,6 +3,8 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - click=7.1.2
+  - click-option-group=0.5.1
   - dask=2.21
   - h5py=2.10.0
   - numpy=1.19.1
@@ -16,3 +18,4 @@ dependencies:
   - yapf
   - pip:
       - suite2p==0.7.5
+      - click-pathlib==2020.3.13.0
