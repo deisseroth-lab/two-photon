@@ -74,11 +74,7 @@ def raw2tiff(ctx, ripper, rippers_path):
 
         This helps preserve the input directory contents.
         """
-        paths_to_copy = [
-            path
-            for path in tiff_path_bruker.iterdir()
-            if not path.name.endswith("ome.tif")
-        ]
+        paths_to_copy = [path for path in tiff_path_bruker.iterdir() if not path.name.endswith("ome.tif")]
         logging.info("Copying back files to input directory: %s", paths_to_copy)
         for path in paths_to_copy:
             if path.is_file():
@@ -96,10 +92,7 @@ def raw2tiff(ctx, ripper, rippers_path):
 
     tiffs = get_tiffs()
     if tiffs:
-        raise RippingError(
-            "Cannot rip because tiffs already exist in %s (%d found)"
-            % (raw_path, len(tiffs))
-        )
+        raise RippingError("Cannot rip because tiffs already exist in %s (%d found)" % (raw_path, len(tiffs)))
 
     logger.info(
         "Ripping using:\n %s\n %s",
@@ -162,9 +155,7 @@ def raw2tiff(ctx, ripper, rippers_path):
 
         if tiffs and not tiffs_changed:
             logging.info("Detected ripping is complete")
-            time.sleep(
-                RIP_EXTRA_WAIT_SECS
-            )  # Wait before terminating ripper, just to be safe.
+            time.sleep(RIP_EXTRA_WAIT_SECS)  # Wait before terminating ripper, just to be safe.
             logging.info("Killing ripper")
             process.kill()
             logging.info("Ripper has been killed")
@@ -173,19 +164,14 @@ def raw2tiff(ctx, ripper, rippers_path):
             logging.info("Done")
             return
 
-    raise RippingError(
-        "Killing ripper because it did not finish within %s seconds"
-        % RIP_TOTAL_WAIT_SECS
-    )
+    raise RippingError("Killing ripper because it did not finish within %s seconds" % RIP_TOTAL_WAIT_SECS)
 
 
 def determine_ripper(raw_path, rippers_path):
     """Determine which version of the Prairie View ripper to use based on reading metadata."""
     env_files = list(raw_path.glob("*.env"))
     if len(env_files) != 1:
-        raise RippingError(
-            "Only expected 1 env file in %s, but found: %s" % (raw_path, env_files)
-        )
+        raise RippingError("Only expected 1 env file in %s, but found: %s" % (raw_path, env_files))
 
     tree = ET.parse(str(raw_path / env_files[0]))
     root = tree.getroot()
@@ -196,13 +182,6 @@ def determine_ripper(raw_path, rippers_path):
     if not match:
         raise RippingError("Could not parse version (expected A.B.C.D): %s" % version)
     version = match.group("majmin")
-    ripper = (
-        rippers_path
-        / f"Prairie View {version}"
-        / "Utilities"
-        / "Image-Block Ripping Utility.exe"
-    )
-    logger.info(
-        "Data created with Prairie version %s, using ripper: %s", version, ripper
-    )
+    ripper = rippers_path / f"Prairie View {version}" / "Utilities" / "Image-Block Ripping Utility.exe"
+    logger.info("Data created with Prairie version %s, using ripper: %s", version, ripper)
     return ripper

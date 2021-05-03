@@ -12,15 +12,11 @@ def get_frame_start(df_voltage, fname):
     frame_start_cat = df_voltage["frame starts"].apply(lambda x: 1 if x > 1 else 0)
     frame_start = frame_start_cat[frame_start_cat.diff() > 0.5].index
     frame_start.to_series().to_hdf(fname, "frame_start", mode="a")
-    logger.info(
-        "Stored calculated frame starts in %s, preview:\n%s", fname, frame_start[:5]
-    )
+    logger.info("Stored calculated frame starts in %s, preview:\n%s", fname, frame_start[:5])
     return frame_start
 
 
-def get_bounds(
-    df_voltage, frame_start, size, stim_channel_name, fname, buffer, shift, settle_time
-):
+def get_bounds(df_voltage, frame_start, size, stim_channel_name, fname, buffer, shift, settle_time):
     """From a dataframe of experiment timings, return a dataframe of artefact locations in the data."""
     logger.info("Calculating artefact regions")
 
@@ -33,22 +29,16 @@ def get_bounds(
     stim_start = stim[stim.diff() > 0.5].index + shift
     stim_stop = stim[stim.diff() < -0.5].index + shift + buffer
 
-    frame, z_plane, y_px_start, y_px_stop = get_start_stop(
-        stim_start, stim_stop, frame_start, y_px, shape, settle_time
-    )
+    frame, z_plane, y_px_start, y_px_stop = get_start_stop(stim_start, stim_stop, frame_start, y_px, shape, settle_time)
 
-    df = pd.DataFrame(
-        {"frame": frame, "z_plane": z_plane, "y_min": y_px_start, "y_max": y_px_stop}
-    )
+    df = pd.DataFrame({"frame": frame, "z_plane": z_plane, "y_min": y_px_start, "y_max": y_px_stop})
     df = df.set_index("frame")
     df.to_hdf(fname, "data", mode="w")
 
     stim_start.to_series().to_hdf(fname, "stim_start", mode="a")
     stim_stop.to_series().to_hdf(fname, "stim_stop", mode="a")
 
-    logger.info(
-        "Stored calculated artefact positions in %s, preview:\n%s", fname, df.head()
-    )
+    logger.info("Stored calculated artefact positions in %s, preview:\n%s", fname, df.head())
     return df
 
 

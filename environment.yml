@@ -3,10 +3,12 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - black
   - click=7.1.2
   - click-option-group=0.5.1
   - dask=2.21
   - h5py=2.10.0
+  - isort
   - numpy=1.19.1
   - pandas=1.0.5
   - pip=20.1.1
@@ -21,3 +23,4 @@ dependencies:
   - pip:
       - suite2p[gui,nwb]==0.10.0
       - click-pathlib==2020.3.13.0
+      - pyproject-flake8

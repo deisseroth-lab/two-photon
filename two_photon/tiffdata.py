@@ -40,9 +40,7 @@ def read(base, size, layout, channel):
     if frames_are_z:
         data = data.swapaxes(0, 1)
 
-    logger.info(
-        "Found data with shape(frames, z_planes, y_pixels, x_pixels): %s", data.shape
-    )
+    logger.info("Found data with shape(frames, z_planes, y_pixels, x_pixels): %s", data.shape)
     return data
 
 
@@ -50,7 +48,5 @@ def read_file(base, cycle, channel, frame):
     """Read in one TIFF file."""
     fname = str(base) + f"_Cycle{cycle+1:05d}_Ch{channel}_{frame+1:06d}.ome.tif"
     with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", "invalid value encountered in true_divide", RuntimeWarning
-        )
+        warnings.filterwarnings("ignore", "invalid value encountered in true_divide", RuntimeWarning)
         return imread(fname)

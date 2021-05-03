@@ -45,9 +45,7 @@ def main():
     def recording_split(recording):
         pieces = recording.split(":")
         if len(pieces) != 2:
-            raise ValueError(
-                "Recording should be SESSION:RECORDING.  Got %s" % recording
-            )
+            raise ValueError("Recording should be SESSION:RECORDING.  Got %s" % recording)
         return pieces
 
     def get_dirname_hdf5(sess_name, rec_name):
@@ -58,9 +56,7 @@ def main():
     # Locations for intput data to be read, output data to be written, and remote
     # data to by sync'd.
     dirname_input = args.input_dir / session_name / recording_name
-    basename_input = (
-        dirname_input / recording_name
-    )  # The subdirectory and file prefix are `recording_name`
+    basename_input = dirname_input / recording_name  # The subdirectory and file prefix are `recording_name`
 
     dirname_hdf5 = get_dirname_hdf5(session_name, recording_name)
 
@@ -71,31 +67,17 @@ def main():
 
     setup_logging(dirname_output)
 
-    fname_csv = pathlib.Path(
-        str(basename_input) + "_Cycle00001_VoltageRecording_001"
-    ).with_suffix(".csv")
+    fname_csv = pathlib.Path(str(basename_input) + "_Cycle00001_VoltageRecording_001").with_suffix(".csv")
 
     if args.rip:
         rip.raw_to_tiff(dirname_input, args.ripper)
 
     # Quick exit if our only operation is to rip
-    if not (
-        args.backup_data
-        or args.preprocess
-        or args.run_suite2p
-        or args.backup_output
-        or args.backup_hdf5
-    ):
+    if not (args.backup_data or args.preprocess or args.run_suite2p or args.backup_output or args.backup_hdf5):
         return
 
     # Quick exit if our only operation is to rip
-    if not (
-        args.backup_data
-        or args.preprocess
-        or args.run_suite2p
-        or args.backup_output
-        or args.backup_hdf5
-    ):
+    if not (args.backup_data or args.preprocess or args.run_suite2p or args.backup_output or args.backup_hdf5):
         return
 
     mdata = metadata.read(basename_input, dirname_output)
@@ -160,9 +142,7 @@ def main():
         # the output data, even if --backup_data is not used.
         backup(fname_csv, dirname_backup / "output")
         if stim_channel_name:
-            slm_date = datetime.strptime(session_name[:8], "%Y%m%d").strftime(
-                "%d-%b-%Y"
-            )
+            slm_date = datetime.strptime(session_name[:8], "%Y%m%d").strftime("%d-%b-%Y")
             slm_mouse = session_name[8:]
 
             slm_root = args.slm_setup_dir / slm_date
@@ -170,18 +150,12 @@ def main():
             slm_trial_order_pattern = "*_" + slm_mouse + "_" + recording_name
 
             backup(slm_targets, dirname_backup / "targets")
-            trial_order_folder = glob.glob(
-                os.path.join(slm_root, slm_trial_order_pattern)
-            )
+            trial_order_folder = glob.glob(os.path.join(slm_root, slm_trial_order_pattern))
             trial_order_path = pathlib.WindowsPath(trial_order_folder[0])
             backup(trial_order_path, dirname_backup / "trial_order")
             # backup_pattern(slm_root, slm_trial_order_pattern, dirname_backup / 'trial_order')
 
-        backup_done_file = (
-            args.backup_dir
-            / "backup_done"
-            / f"{session_name}_{recording_name}.backup_done"
-        )
+        backup_done_file = args.backup_dir / "backup_done" / f"{session_name}_{recording_name}.backup_done"
         backup_done_file.parent.mkdir(parents=True, exist_ok=True)
         logger.info("Creating backup_done file: %s", backup_done_file)
         backup_done_file.touch()
@@ -207,9 +181,7 @@ def preprocess(
     size = mdata["size"]
 
     df_voltage = pd.read_csv(fname_csv, index_col="Time(ms)", skipinitialspace=True)
-    logger.info(
-        "Read voltage recordings from: %s, preview:\n%s", fname_csv, df_voltage.head()
-    )
+    logger.info("Read voltage recordings from: %s, preview:\n%s", fname_csv, df_voltage.head())
     fname_frame_start = dirname_output / "frame_start.h5"
     frame_start = artefacts.get_frame_start(df_voltage, fname_frame_start)
 
@@ -345,9 +317,7 @@ def run_suite2p(hdf5_list, dirname_output, mdata):
 
 def parse_args():
     """Gather command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Preprocess 2-photon raw data with suite2p"
-    )
+    parser = argparse.ArgumentParser(description="Preprocess 2-photon raw data with suite2p")
 
     group = parser.add_argument_group("Preprocessing arguments")
 
@@ -383,9 +353,7 @@ def parse_args():
         default="Z:/mSLM/SetupFiles/Experiment",
         help="Top level directory for SLM setup data",
     )
-    group.add_argument(
-        "--output_dir", type=pathlib.Path, help="Top level directory of data processing"
-    )
+    group.add_argument("--output_dir", type=pathlib.Path, help="Top level directory of data processing")
 
     group.add_argument(
         "--recording",
@@ -441,9 +409,7 @@ def parse_args():
         action="store_true",
         help="Backup hdf5 formatted data (with and without artefact removal)",
     )
-    group.add_argument(
-        "--backup_output", action="store_true", help="Backup all output processing"
-    )
+    group.add_argument("--backup_output", action="store_true", help="Backup all output processing")
     group.add_argument(
         "--backup_dir",
         type=pathlib.Path,

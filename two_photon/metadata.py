@@ -16,9 +16,7 @@ class MetadataError(Exception):
 def read(basename_input, dirname_output):
     """Read in metdata from XML files."""
     fname_xml = basename_input.with_suffix(".xml")
-    fname_vr_xml = pathlib.Path(
-        str(basename_input) + "_Cycle00001_VoltageRecording_001"
-    ).with_suffix(".xml")
+    fname_vr_xml = pathlib.Path(str(basename_input) + "_Cycle00001_VoltageRecording_001").with_suffix(".xml")
     fname_metadata = dirname_output / "metadata.json"
 
     logger.info("Extracting metadata from xml files:\n%s\n%s", fname_xml, fname_vr_xml)
@@ -31,14 +29,10 @@ def read(basename_input, dirname_output):
         return type_fn(value)
 
     def indexed_value(key, index, type_fn=None, required=True):
-        element = mdata_root.find(
-            f'.//PVStateValue[@key="{key}"]/IndexedValue[@index="{index}"]'
-        )
+        element = mdata_root.find(f'.//PVStateValue[@key="{key}"]/IndexedValue[@index="{index}"]')
         if not element:
             if required:
-                raise MetadataError(
-                    "Could not find required key:index of %s:%s" % (key, index)
-                )
+                raise MetadataError("Could not find required key:index of %s:%s" % (key, index))
             return None
         value = element.attrib["value"]
         return type_fn(value)

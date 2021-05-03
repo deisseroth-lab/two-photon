@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.formatting.provider": "black",
+		"editor.formatOnSave": true,
+		"python.linting.flake8Path": "pflake8",
+		"python.linting.flake8Enabled": true,
+	}
+}

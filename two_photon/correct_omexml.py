@@ -42,18 +42,14 @@ def correct_omexml(omexml):
                 raise CorrectOmeXml("correct_onexml is not validated with SizeZ=1")
             if axes != "TCZYX":
                 # For now, punt if we get a format different than what we normally use.
-                raise CorrectOmeXml(
-                    "correct_onexml is not validated for axes=%s" % axes
-                )
+                raise CorrectOmeXml("correct_onexml is not validated for axes=%s" % axes)
             for data in pixels:
                 if data.tag.endswith("Channel"):
                     spp = int(data.attrib.get("SamplesPerPixel"))
                     if spp > 1:
                         # This could be incorporated with a little more work, but is not something
                         # typically done, so that work is deferred for now.
-                        raise CorrectOmeXml(
-                            "correct_onexml needs updating to handle SamplesPerPixel != 1"
-                        )
+                        raise CorrectOmeXml("correct_onexml needs updating to handle SamplesPerPixel != 1")
                 if not data.tag.endswith("TiffData"):
                     continue
                 if data.attrib["FirstZ"] == "0":

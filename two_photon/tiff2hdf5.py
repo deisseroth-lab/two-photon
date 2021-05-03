@@ -32,10 +32,10 @@ def tiff2hdf5(ctx, channel):
 
     # Bruker software appends the raw_path basename to the given output directory.
     tiff_path = ctx.obj["tiff_path"] / ctx.obj["raw_path"].name
-    orig_hdf5_path = ctx.obj["orig_hdf5_path"]
-    hdf5_key = ctx.obj["hdf5_key"]
+    orig_h5_path = ctx.obj["orig_h5_path"]
+    h5_key = ctx.obj["h5_key"]
 
-    os.makedirs(orig_hdf5_path.parent, exist_ok=True)
+    os.makedirs(orig_h5_path.parent, exist_ok=True)
 
     # To load OME tiff stacks, it suffices to load just the first file, which contains
     # metadata to allow the tifffile to load the entire stack.
@@ -43,8 +43,7 @@ def tiff2hdf5(ctx, channel):
     tiff_init = list(tiff_path.glob(tiff_glob))
     if len(tiff_init) != 1:
         raise Tiff2Hdf5Error(
-            "Expected one initial tifffile, found: %s.  Pattern: %s"
-            % (tiff_init, tiff_path / tiff_glob)
+            "Expected one initial tifffile, found: %s.  Pattern: %s" % (tiff_init, tiff_path / tiff_glob)
         )
     tiff_init = tiff_init[0]
 
@@ -65,8 +64,8 @@ def tiff2hdf5(ctx, channel):
         chunks = -1
     data_dask = da.from_array(data, chunks=chunks)
 
-    logger.info("Writing data to hdf5: %s" % orig_hdf5_path)
-    da.to_hdf5(orig_hdf5_path, hdf5_key, data_dask)
+    logger.info("Writing data to hdf5: %s" % orig_h5_path)
+    da.to_hdf5(orig_h5_path, h5_key, data_dask)
     logger.info("Done writing hdf5")
 
     logger.info("Done")

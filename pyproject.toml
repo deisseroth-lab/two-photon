@@ -1,0 +1,12 @@
+[tool.black]
+line-length = 120
+
+[tool.flake8]
+max-line-length = 120
+
+[isort]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+profile = "black"
+skip_gitignore = "true"
+force_to_top = "true"
+default_section = "THIRDPARTY"
