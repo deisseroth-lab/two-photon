@@ -16,6 +16,7 @@ dependencies:
   - scikit-image=0.17.2
   - scipy=1.5.2
   - tifffile=2021.4.8
+  - xmldiff=2.4
   - zarr=2.8.1
   - pip:
       - suite2p[gui,nwb]==0.10.0

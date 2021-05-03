@@ -1,0 +1,23 @@
+<ns0:OME xmlns:ns0="http://www.openmicroscopy.org/Schemas/OME/2012-06">
+  <ns0:Image>
+    <ns0:Pixels DimensionOrder="XYZCT" SizeC="1" SizeT="2" SizeX="512" SizeY="512" SizeZ="4">
+      <ns0:Channel SamplesPerPixel="1"/>
+      <ns0:TiffData FirstC="0" FirstT="0" FirstZ="0" IFD="0" PlaneCount="1">
+      </ns0:TiffData>
+      <ns0:TiffData FirstC="0" FirstT="0" FirstZ="1" IFD="0" PlaneCount="1">
+      </ns0:TiffData>
+      <ns0:TiffData FirstC="0" FirstT="0" FirstZ="2" IFD="0" PlaneCount="1">
+      </ns0:TiffData>
+      <ns0:TiffData FirstC="0" FirstT="0" FirstZ="3" IFD="0" PlaneCount="1">
+      </ns0:TiffData>
+      <ns0:TiffData FirstC="0" FirstT="1" FirstZ="0" IFD="0" PlaneCount="1">
+      </ns0:TiffData>
+      <ns0:TiffData FirstC="0" FirstT="1" FirstZ="1" IFD="0" PlaneCount="1">
+      </ns0:TiffData>
+      <ns0:TiffData FirstC="0" FirstT="1" FirstZ="2" IFD="0" PlaneCount="1">
+      </ns0:TiffData>
+      <ns0:TiffData FirstC="0" FirstT="1" FirstZ="3" IFD="0" PlaneCount="1">
+      </ns0:TiffData>
+    </ns0:Pixels>
+  </ns0:Image>
+</ns0:OME>
