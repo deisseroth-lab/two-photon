@@ -14,28 +14,17 @@ def check_h5(ctx, param, value):
 
 @click.group(chain=True)
 @click.pass_context
-@click.option("--directory", type=Path(exists=True), required=True, help="Top-level directory for a single acquisition")
-@click.option("--raw_subdir", default="raw", show_default=True, help="Subdirectory under --directory for raw data")
-@click.option("--tiff_subdir", default="tiff", show_default=True, help="Subdirectory under --directory for tiff stack")
-@click.option("--h5_key", default="/data", show_default=True, help="Key within h5 file for data")
-@click.option(
-    "--orig_h5",
-    default="orig.h5",
-    callback=check_h5,
-    show_default=True,
-    help="Filename in --directory for original data in h5 format",
-)
-def cli(ctx, directory, raw_subdir, tiff_subdir, h5_key, orig_h5):
+@click.option("--path", type=Path(exists=True), required=True, help="Top-level storage for local data.")
+@click.option("--acquisition", required=True, help="Acquisition sub-directory to process.")
+def cli(ctx, path, acquisition):
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s.%(msecs)03d %(module)s:%(lineno)s %(levelname)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     ctx.ensure_object(dict)
-    ctx.obj["raw_path"] = directory / raw_subdir
-    ctx.obj["tiff_path"] = directory / tiff_subdir
-    ctx.obj["orig_h5_path"] = directory / orig_h5
-    ctx.obj["h5_key"] = h5_key
+    ctx.obj["path"] = path
+    ctx.obj["acquisition"] = acquisition
 
 
 cli.add_command(raw2tiff.raw2tiff)

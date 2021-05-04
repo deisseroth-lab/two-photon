@@ -1,18 +1,19 @@
 """Script to convert Bruker OME TIFF stack to hdf5."""
 
 import logging
-import os
+import shutil
 
 import click
 import dask.array as da
 import tifffile
 import zarr
 
+from two_photon import correct_omexml
+
 logger = logging.getLogger(__name__)
 
 
 TIFF_GLOB_INIT = "*_Cycle00001_Ch{channel}_000001.ome.tif"
-TIFF_GLOB_ALL = "*_Cycle*_Ch{channel}_*.ome.tif"
 
 
 class Tiff2Hdf5Error(Exception):
@@ -27,15 +28,23 @@ class Tiff2Hdf5Error(Exception):
     required=True,
     help="Channel number of tiff stack to convert to hdf5",
 )
-def tiff2hdf5(ctx, channel):
-    """Convert an OME TIFF stack to a single HDF5 file."""
+@click.option("--fix_bruker_tiff", default=False)
+def tiff2hdf5(ctx, channel, fix_bruker_tiff):
+    """Convert an OME TIFF stack to a single HDF5 file.
 
-    # Bruker software appends the raw_path basename to the given output directory.
-    tiff_path = ctx.obj["tiff_path"] / ctx.obj["raw_path"].name
-    orig_h5_path = ctx.obj["orig_h5_path"]
-    h5_key = ctx.obj["h5_key"]
+    Parameters:
+    ctx: click's context object
+        The underlying object should contain "path" an "acquisition" global flags
+    channel: int
+        The channel of the TIFF stack to process
+    fix_bruker_tiff: boolean
+        Whether to first fix the broken OME XML metadata store in the tiff stack's master file.
+    """
+    path = ctx.obj["path"]
+    acquisition = ctx.obj["acquisition"]
 
-    os.makedirs(orig_h5_path.parent, exist_ok=True)
+    tiff_path = path / "processed" / acquisition / "tiff"
+    orig_h5_path = path / "processed" / acquisition / "orig.h5"
 
     # To load OME tiff stacks, it suffices to load just the first file, which contains
     # metadata to allow the tifffile to load the entire stack.
@@ -46,6 +55,16 @@ def tiff2hdf5(ctx, channel):
             "Expected one initial tifffile, found: %s.  Pattern: %s" % (tiff_init, tiff_path / tiff_glob)
         )
     tiff_init = tiff_init[0]
+
+    if fix_bruker_tiff:
+        tiff_init_fixed = tiff_init.with_suffix(".fixed" + tiff_init.suffix)
+        if tiff_init_fixed.exists():
+            raise Tiff2Hdf5Error(
+                "Attempted to fix a Bruker tiff file that may already be corrected: %s" % str(tiff_init)
+            )
+        shutil.copy(tiff_init, tiff_init_fixed)
+        correct_omexml.correct_tiff(tiff_init_fixed)
+        tiff_init = tiff_init_fixed
 
     logger.info("Reading TIFF files")
     zarr_store = tifffile.imread(tiff_init, aszarr=True)
@@ -62,10 +81,11 @@ def tiff2hdf5(ctx, channel):
         chunks = ("auto", -1, -1)
     else:
         chunks = -1
+
     data_dask = da.from_array(data, chunks=chunks)
 
     logger.info("Writing data to hdf5: %s" % orig_h5_path)
-    da.to_hdf5(orig_h5_path, h5_key, data_dask)
+    da.to_hdf5(orig_h5_path, "/data", data_dask)
     logger.info("Done writing hdf5")
 
     logger.info("Done")

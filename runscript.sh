@@ -18,4 +18,5 @@ cp -r /home/wineuser/.wine "${WINEPREFIX}"
 
 echo "Executing rip. One err and four fixme statements are OK."
 echo
-${CMDPREFIX} two-photon --directory /data raw2tiff --rippers_path /apps/two-photon "$@"
+# TODO: Fix this to run with new --acquisition flag
+${CMDPREFIX} two-photon --path /data raw2tiff
