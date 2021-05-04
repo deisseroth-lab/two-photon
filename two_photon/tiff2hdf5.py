@@ -4,6 +4,7 @@ import logging
 import shutil
 
 import click
+import dask
 import dask.array as da
 import tifffile
 import zarr
@@ -28,7 +29,7 @@ class Tiff2Hdf5Error(Exception):
     required=True,
     help="Channel number of tiff stack to convert to hdf5",
 )
-@click.option("--fix_bruker_tiff", default=False)
+@click.option("--fix_bruker_tiff", is_flag=True, default=False)
 def tiff2hdf5(ctx, channel, fix_bruker_tiff):
     """Convert an OME TIFF stack to a single HDF5 file.
 
@@ -59,14 +60,13 @@ def tiff2hdf5(ctx, channel, fix_bruker_tiff):
     if fix_bruker_tiff:
         tiff_init_fixed = tiff_init.with_suffix(".fixed" + tiff_init.suffix)
         if tiff_init_fixed.exists():
-            raise Tiff2Hdf5Error(
-                "Attempted to fix a Bruker tiff file that may already be corrected: %s" % str(tiff_init)
-            )
+            logger.warning("Deleting previously corrected Burker tiff: %s", str(tiff_init))
+            tiff_init_fixed.unlink()
         shutil.copy(tiff_init, tiff_init_fixed)
         correct_omexml.correct_tiff(tiff_init_fixed)
         tiff_init = tiff_init_fixed
 
-    logger.info("Reading TIFF files")
+    logger.info("Reading TIFF metadata")
     zarr_store = tifffile.imread(tiff_init, aszarr=True)
     data = zarr.open(zarr_store, mode="r")
     logger.info("Found TIFF data with shape %s and type %s", data.shape, data.dtype)
@@ -84,8 +84,14 @@ def tiff2hdf5(ctx, channel, fix_bruker_tiff):
 
     data_dask = da.from_array(data, chunks=chunks)
 
+    if orig_h5_path.exists():
+        logging.warning("Removing existing hdf5 file: %s", orig_h5_path)
+        orig_h5_path.unlink()
     logger.info("Writing data to hdf5: %s" % orig_h5_path)
-    da.to_hdf5(orig_h5_path, "/data", data_dask)
+    # Read/write using single-thread ("synchronous").  If using SSD, could use additional workers.
+    # This isn't a piece that needs to be optimized yet, so keep it simple.
+    with dask.config.set(scheduler="synchronous"):
+        da.to_hdf5(orig_h5_path, "/data", data_dask, compression="lzf", shuffle=True)
     logger.info("Done writing hdf5")
 
     logger.info("Done")
