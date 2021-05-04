@@ -14,8 +14,8 @@ def test_determine_ripper_54(tmp_path):
 """
     )
 
-    actual = raw2tiff.determine_ripper(tmp_path, Path("/toplevel"))
-    expected = Path("/toplevel/Prairie View 5.4/Utilities/Image-Block Ripping Utility.exe")
+    actual = raw2tiff.determine_ripper(tmp_path)
+    expected = Path(__file__).parent.parent / "Prairie View 5.4/Utilities/Image-Block Ripping Utility.exe"
     assert actual == expected
 
 
@@ -28,19 +28,19 @@ def test_determine_ripper_55(tmp_path):
 """
     )
 
-    actual = raw2tiff.determine_ripper(tmp_path, Path("/toplevel"))
-    expected = Path("/toplevel/Prairie View 5.5/Utilities/Image-Block Ripping Utility.exe")
+    actual = raw2tiff.determine_ripper(tmp_path)
+    expected = Path(__file__).parent.parent / "Prairie View 5.5/Utilities/Image-Block Ripping Utility.exe"
     assert actual == expected
 
 
 def test_determine_ripper_bad_path():
     with pytest.raises(raw2tiff.RippingError):
-        raw2tiff.determine_ripper(Path("/nonexistant"), Path("/toplevel"))
+        raw2tiff.determine_ripper(Path("/nonexistant"))
 
 
 def test_determine_ripper_missing_metadata(tmp_path):
     with pytest.raises(raw2tiff.RippingError):
-        raw2tiff.determine_ripper(tmp_path, Path("/toplevel"))
+        raw2tiff.determine_ripper(tmp_path)
 
 
 def test_determine_ripper_multiple_metadata(tmp_path):
@@ -59,7 +59,7 @@ def test_determine_ripper_multiple_metadata(tmp_path):
 """
     )
     with pytest.raises(raw2tiff.RippingError):
-        raw2tiff.determine_ripper(tmp_path, Path("/toplevel"))
+        raw2tiff.determine_ripper(tmp_path)
 
 
 def test_determine_ripper_bad_version(tmp_path):
@@ -71,4 +71,4 @@ def test_determine_ripper_bad_version(tmp_path):
 """
     )
     with pytest.raises(raw2tiff.RippingError):
-        raw2tiff.determine_ripper(tmp_path, Path("/toplevel"))
+        raw2tiff.determine_ripper(tmp_path)
