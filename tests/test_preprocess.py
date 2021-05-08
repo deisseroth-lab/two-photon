@@ -14,15 +14,16 @@ def test_artefact_regions():
     )
     df_stims = pd.DataFrame(
         [
-            [20, 30],  # Straddles first frame start
-            [60, 70],  # Entirely within frame
-            [90, 102],  # Ends within frame gap
-            [103, 110],  # Starts within frame gap
-            [125, 140],  # Straddles last frame end
+            [0, 10],  # A: Before first frame
+            [20, 30],  # B: Straddles first frame start
+            [60, 70],  # C: Entirely within a frame
+            [90, 102],  # D: Ends within frame gap
+            [103, 110],  # E: Starts within frame gap
+            [125, 140],  # F: Straddles last frame end
+            [145, 150],  # G: After final frame
         ],
         columns=["start", "stop"],
     )
-    # df_stims = pd.DataFrame([[5, 10], [20, 30], [60, 70], [90, 110]], columns=["start", "stop"])
     shape = (2, 2, 200, 200)
     df_artefacts = preprocess.artefact_regions(df_frames, df_stims, shape)
 

@@ -49,7 +49,6 @@ def preprocess(ctx, stim_channel, shift, buffer, settle):
     stims = df_voltage[stim_channel].apply(lambda x: 1 if x > 1 else 0)
     stim_start = stims[stims.diff() > 0.5].index + shift
     stim_stop = stims[stims.diff() < -0.5].index + shift + buffer
-    stim_stop = stim_stop[: len(stim_start)]
     df_stims = pd.DataFrame({"start": stim_start, "stop": stim_stop})
 
     num_frames_data = data.shape[0] * data.shape[1]  # time-slices * z-planes
@@ -72,22 +71,20 @@ def preprocess(ctx, stim_channel, shift, buffer, settle):
 def artefact_regions(df_frames, df_stims, shape):
     """Calculate which regions of which frames have stim artefacts."""
 
-    # Sanity checks that the dataframes are correctly sorted.
+    # Verifies that the number of frames in the shape and the dataframe agree.
+    assert np.prod(shape[:2]) == df_frames.shape[0]
+
+    # Checks that the dataframes are correctly sorted.
     def check_frame(df):
-        assert df["start"].is_monotonic_increasing
-        assert df["stop"].is_monotonic_increasing
         assert (df["stop"] > df["start"]).all()
         assert (df["stop"][:-1].values <= df["start"][1:].values).all()
 
     check_frame(df_frames)
     check_frame(df_stims)
 
-    # Check that all stims occur within some frame.
-    assert df_stims["stop"].iloc[0] >= df_frames["start"].iloc[0]
-    assert df_stims["start"].iloc[-1] <= df_frames["stop"].iloc[-1]
-
-    # Verify that the number of frames agress between the data and the start/stop dataframe
-    assert np.prod(shape[:2]) == df_frames.shape[0]
+    # Removes stims which do no occur within some frame.
+    df_stims = df_stims[df_stims["stop"] > df_frames["start"].iloc[0]]
+    df_stims = df_stims[df_stims["start"] < df_frames["stop"].iloc[-1]]
 
     shape_tz = shape[:2]
     shape_y = shape[2]
