@@ -108,9 +108,10 @@ def artefact_regions(df_frames, df_stims, shape):
             "t_stop": t_stop,
             "z_stop": z_stop,
             "pixel_stop": pixel_stop,
-        }
+        },
+        index=df_stims.index,
     )
-    return df_artefacts
+    return split_multi_frame_stim(df_artefacts, shape_tz=shape_tz, shape_y=shape_y)
 
 
 def interpolate(times, frame_boundaries, all_boundaries, pixels, shape_tz, fill, offset=0):
@@ -125,3 +126,29 @@ def interpolate(times, frame_boundaries, all_boundaries, pixels, shape_tz, fill,
     pixel[out_of_frame] = fill
 
     return frame_t, frame_z, pixel.astype(np.int)
+
+
+def split_multi_frame_stim(df, shape_tz, shape_y):
+    columns = ["t", "z", "pixel_start", "pixel_stop"]
+    index = []
+    data = []
+    for row_index, row in df.iterrows():
+        rows = split_multi_frame_stim_row(row, shape_tz, shape_y)
+        data.extend(rows)
+        index.extend([row_index] * len(rows))
+    return pd.DataFrame(data, index=index, columns=columns)
+
+
+def split_multi_frame_stim_row(row, shape_tz, shape_y):
+    if row.t_start == row.t_stop and row.z_start == row.t_stop:
+        return [[row.t_start, row.z_start, row.pixel_start, row.pixel_stop]]
+
+    idx_start, idx_stop = np.ravel_multi_index([(row.t_start, row.t_stop), (row.z_start, row.z_stop)], shape_tz)
+
+    data = [[row.t_start, row.z_start, row.pixel_start, shape_y]]
+    for idx in range(idx_start + 1, idx_stop):
+        frame_t, frame_z = np.unravel_index(idx, shape_tz)
+        data.append([frame_t, frame_z, 0, shape_y])
+    data.append([row.t_stop, row.z_stop, 0, row.pixel_stop])
+
+    return data
