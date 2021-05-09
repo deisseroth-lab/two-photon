@@ -3,7 +3,7 @@ import logging
 import click
 from click_pathlib import Path
 
-from . import raw2tiff, convert, preprocess
+from . import convert, preprocess, raw2tiff
 
 
 def check_h5(ctx, param, value):
