@@ -9,7 +9,6 @@ from two_photon import interpolate
 def test_interpolate_nan_small():
     data = np.array([1.0, np.nan, 3.0]).reshape((3, 1, 1))
     expected = np.array([1.0, 2.0, 3.0]).reshape((3, 1, 1))
-
     result = interpolate.interpolate_nan(data)
     np.testing.assert_equal(result, expected)
 
@@ -55,4 +54,4 @@ def test_interpolate_nan_large():
 def test_interpolate_nan_extrapolation_error():
     data = np.array([1.0, 2.0, np.nan]).reshape((3, 1, 1))
     with pytest.raises(ValueError):
-        interpolate.interpolate_nan(data)
+        interpolate.interpolate_nan(data).compute()

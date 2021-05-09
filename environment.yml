@@ -6,7 +6,7 @@ dependencies:
   - black
   - click=7.1.2
   - click-option-group=0.5.1
-  - dask=2.21
+  - dask=2021.4.1
   - h5py=2.10.0
   - isort
   - numpy=1.19.1

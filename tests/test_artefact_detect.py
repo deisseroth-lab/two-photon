@@ -1,6 +1,6 @@
 import pandas as pd
 
-from two_photon import preprocess
+from two_photon import artefact_detect
 
 
 def test_artefact_regions_single_frame():
@@ -17,7 +17,7 @@ def test_artefact_regions_single_frame():
         columns=["start", "stop"],
     )
     shape = (1, 1, 200, 200)
-    df_artefacts = preprocess.artefact_regions(df_frames, df_stims, shape)
+    df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims, shape)
 
     df_expected = pd.DataFrame(
         [
@@ -43,7 +43,7 @@ def test_artefact_regions_multi_frame_stim():
     )
     df_stims = pd.DataFrame([[70, 120]], index=[42], columns=["start", "stop"])
     shape = (2, 2, 200, 200)
-    df_artefacts = preprocess.artefact_regions(df_frames, df_stims, shape)
+    df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims, shape)
 
     df_expected = pd.DataFrame(
         [
