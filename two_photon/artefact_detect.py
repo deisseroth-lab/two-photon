@@ -5,10 +5,25 @@ import pandas as pd
 
 
 def artefact_regions(df_frames, df_stims, shape):
-    """Calculate which regions of which frames have stim artefacts."""
+    """Calculate which regions of which frames have stim artefacts.
+
+    Parameters
+    ----------
+    df_frames: pd.DataFrame with columns "start", "stop"
+        List of start/stop times for each acquisition frame.  The length must
+        be equal to shape[0] * shape[1].  Frames cannot overlap.
+    df_stims: pd.DataFrame with columns "start", "stop"
+        List of start/stop times for each stims.  Stims occurring outside of
+        any frame are ignored.
+    shape: tuple of integers
+        The dataset shape in (time, z, y, x) order.
+    """
 
     # Verifies that the number of frames in the shape and the dataframe agree.
     assert np.prod(shape[:2]) == df_frames.shape[0]
+
+    df_frames = df_frames.sort_values("start")
+    df_stims = df_stims.sort_values("start")
 
     # Checks that the dataframes are correctly sorted.
     def check_frame(df):
