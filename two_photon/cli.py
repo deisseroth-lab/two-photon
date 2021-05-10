@@ -3,7 +3,7 @@ import logging
 import click
 from click_pathlib import Path
 
-from . import convert, preprocess, raw2tiff
+from . import analyze, convert, preprocess, raw2tiff
 
 
 def check_h5(ctx, param, value):
@@ -30,3 +30,4 @@ def cli(ctx, path, acquisition):
 cli.add_command(raw2tiff.raw2tiff)
 cli.add_command(convert.convert)
 cli.add_command(preprocess.preprocess)
+cli.add_command(analyze.analyze)
