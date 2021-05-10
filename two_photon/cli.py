@@ -3,28 +3,20 @@ import logging
 import click
 from click_pathlib import Path
 
-from . import analyze, backup, convert, preprocess, raw2tiff
-
-
-def check_h5(ctx, param, value):
-    if value.endswith(".h5") and not value.endswith(".hdf5"):
-        raise click.BadParameter("suffix should be .h5 or .hdf5 for compatibility with Suite2p")
-    return value
+from . import analyze, backup, convert, layout, preprocess, raw2tiff
 
 
 @click.group(chain=True)
 @click.pass_context
-@click.option("--path", type=Path(exists=True), required=True, help="Top-level storage for local data.")
+@click.option("--base_path", type=Path(exists=True), required=True, help="Top-level storage for local data.")
 @click.option("--acquisition", required=True, help="Acquisition sub-directory to process.")
-def cli(ctx, path, acquisition):
+def cli(ctx, base_path, acquisition):
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s.%(msecs)03d %(module)s:%(lineno)s %(levelname)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    ctx.ensure_object(dict)
-    ctx.obj["path"] = path
-    ctx.obj["acquisition"] = acquisition
+    ctx.obj = layout.Layout(base_path, acquisition)
 
 
 cli.add_command(raw2tiff.raw2tiff)

@@ -12,23 +12,46 @@ from two_photon import artefact_detect, interpolate
 logger = logging.getLogger(__name__)
 
 
+# TODO: Convert shifts/buffers to pixels.
 @click.command()
-@click.pass_context
+@click.pass_obj
 @click.option("--stim_channel", type=str, help="Channel of stim signal")
-@click.option("--shift", type=int, help="")
-@click.option("--buffer", type=int, help="")
-@click.option("--settle", type=int, help="")
-def preprocess(ctx, stim_channel, shift, buffer, settle):
-    path = ctx.obj["path"]
-    acquisition = ctx.obj["acquisition"]
+@click.option(
+    "--shift_ms",
+    type=int,
+    help="Time (milliseconds) used offset to stim windows, to adjust for unknown jitter in timing.",
+)
+@click.option(
+    "--buffer_ms",
+    type=int,
+    help="Time (milliseconds) used to lengthen stim windows, to adjust for unknown jitter in timing.",
+)
+@click.option(
+    "--settle_ms",
+    type=int,
+    help="Time (milleseconds) during a frame time period during which acquisition does not happen.",
+)
+def preprocess(layout, stim_channel, shift_ms, buffer_ms, settle_ms):
+    """Removes artefacts from raw data.
 
+    Parameters
+    ----------
+    layout: Layout object
+        Object used to determine path naming
+    shift_ms: float
+        Time (milliseconds) used offset to stim windows, to adjust for unknown jitter in timing.
+    buffer_ms: float
+        Time (milliseconds) used to lengthen stim windows, to adjust for unknown jitter in timing.
+    settle_ms: float
+        Time (milleseconds) during a frame time period during which acquisition does not happen.
+    """
     # Input files
-    convert_path = path / "convert" / acquisition
+    convert_path = layout.path("convert")
     orig_h5_path = convert_path / "orig.h5"
     voltage_h5_path = convert_path / "voltage.h5"
 
     # Output files
-    preprocess_path = path / "preprocess" / acquisition
+    preprocess_path = layout.path("preprocess")
     preprocess_path.mkdir(exist_ok=True)
     preprocess_h5_path = preprocess_path / "preprocess.h5"
     artefacts_path = preprocess_path / "artefacts.h5"
@@ -45,12 +68,12 @@ def preprocess(ctx, stim_channel, shift, buffer, settle):
     frames = df_voltage["frame starts"].apply(lambda x: 1 if x > 1 else 0)
     frames = frames[frames.diff() > 0.5].index
     frame_start = frames[:-1]
-    frame_stop = frames[1:] - settle
+    frame_stop = frames[1:] - settle_ms
     df_frames = pd.DataFrame({"start": frame_start, "stop": frame_stop})
 
     stims = df_voltage[stim_channel].apply(lambda x: 1 if x > 1 else 0)
-    stim_start = stims[stims.diff() > 0.5].index + shift
-    stim_stop = stims[stims.diff() < -0.5].index + shift + buffer
+    stim_start = stims[stims.diff() > 0.5].index + shift_ms
+    stim_stop = stims[stims.diff() < -0.5].index + shift_ms + buffer_ms
     df_stims = pd.DataFrame({"start": stim_start, "stop": stim_stop})
 
     num_frames_data = data.shape[0] * data.shape[1]  # time-slices * z-planes

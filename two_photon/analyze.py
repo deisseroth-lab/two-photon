@@ -10,20 +10,26 @@ logger = logging.getLogger(__name__)
 
 
 @click.command()
-@click.pass_context
+@click.pass_obj
 @click.option("--extra_acquisitions", multiple=True, help="Additional paths to include in analysis after --path")
-def analyze(ctx, extra_paths):
-    path = ctx.obj["path"]
-    acquisition = ctx.obj["acquisition"]
+def analyze(layout, extra_acquisitions):
+    """Runs suite2p on preprocessed data.
 
-    analyze_path = path / "analyze" / acquisition
+    Parameters
+    ----------
+    layout: Layout object
+        Object used to determine path naming
+    extra_acquisitions: list of str
+        Additional (alrady preprocssed) acquisitions to append to the base acquisition during analysis.
+    """
+    preprocess_path = layout.path("preprocess")
+    analyze_path = layout.path("analyze")
 
-    data_paths = [p / "preprocess" / acquisition for p in [path] + extra_paths]
+    data_paths = [preprocess_path] + [layout.path("preprocess", acq) for acq in extra_acquisitions]
 
-    xml_prefix = acquisition.split("/")[-1]
-    fname_xml = path / "raw" / acquisition / xml_prefix + ".xml"
+    xml_path = layout.raw_xml_path()
 
-    mdata_root = ElementTree.parse(fname_xml).getroot()
+    mdata_root = ElementTree.parse(xml_path).getroot()
     element = mdata_root.find('.//PVStateValue[@key="framePeriod"]')
     period = float(element.attrib["value"])
 

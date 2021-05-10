@@ -23,7 +23,7 @@ class ConvertError(Exception):
 
 
 @click.command()
-@click.pass_context
+@click.pass_obj
 @click.option(
     "--channel",
     type=int,
@@ -31,27 +31,24 @@ class ConvertError(Exception):
     help="Channel number of tiff stack to convert to hdf5",
 )
 @click.option("--fix_bruker_tiff", is_flag=True, default=False)
-def convert(ctx, channel, fix_bruker_tiff):
+def convert(layout, channel, fix_bruker_tiff):
     """Convert an OME TIFF stack and the voltage recording data to an HDF5 file.
 
-    Parameters:
-    ctx: click's context object
-        The underlying object should contain "path" an "acquisition" global flags
+    Parameters
+    ----------
+    layout : Layout object
+        Object used to determine path naming
     channel: int
         The channel of the TIFF stack to process
     fix_bruker_tiff: boolean
         Whether to first fix the broken OME XML metadata store in the tiff stack's master file.
     """
-    path = ctx.obj["path"]
-    acquisition = ctx.obj["acquisition"]
-
     # Input filenames
-    voltage_prefix = acquisition.split("/")[-1]
-    voltage_csv_path = path / "raw" / acquisition / f"{voltage_prefix}_Cycle00001_VoltageRecording_001.csv"
-    tiff_path = path / "tiff" / acquisition
+    voltage_csv_path = layout.raw_voltage_path()
+    tiff_path = layout.path("tiff")
 
     # Output filenames
-    convert_path = path / "convert" / acquisition
+    convert_path = layout.path("convert")
     convert_path.mkdir(exist_ok=True)
     orig_h5_path = convert_path / "orig.h5"
     voltage_h5_path = convert_path / "voltage.h5"

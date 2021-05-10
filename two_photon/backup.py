@@ -4,6 +4,7 @@ import platform
 import subprocess
 
 import click
+from click_pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -34,24 +35,38 @@ class BackupError(Exception):
 
 
 @click.command()
-@click.pass_context
-@click.option("--backup_path", help="Path to backup data")
-@click.option("--backup_stage", help="Stage to backup")
-def backup(ctx, backup_path, backup_stage):
-    path = ctx.obj["path"]
-    acquisition = ctx.obj["acquisition"]
+@click.pass_obj
+@click.option(
+    "--backup_path", type=Path(exists=True), required=True, help="Top-level directory where backup data resides"
+)
+@click.option(
+    "--backup_stage",
+    type=click.Choice(["raw", "convert", "preprocess", "analyze"]),
+    multiple=True,
+    help="Names of stages to backup",
+)
+def backup(layout, backup_path, backup_stage):
+    """Backs up data from one or more pipeline stages.
 
-    local_path = path / backup_stage / acquisition
-    remote_path = backup_path / backup_stage / acquisition
+    Parameters
+    ----------
+    layout: Layout object
+        Object used to determine path naming
+    backup_path: pathlib.Path
+        Top-level directory where backup data resides
+    backup_stages: list of str
+        Names of stages to backup
+    """
+    for stage in backup_stage:
+        local_path = layout.path(stage)
+        remote_path = layout.backup_path(backup_path, stage)
 
-    if backup_stage == "tiff":  # TIFF stacks need to be zipped first.
-        zip_path = archive_dir(local_path)
-        backup_path(zip_path, remote_path / zip_path.name)
-        zip_path.unlink()
-    else:
-        backup_path(local_path, remote_path)
-
-    # Backup stim
+        if stage == "tiff":  # TIFF stacks need to be archived first.
+            archive = archive_path(local_path)
+            backup_path(archive, remote_path / archive.name)
+            archive.unlink()
+        else:
+            backup_path(local_path, remote_path)
 
 
 def backup_path(local_path, backup_path):
@@ -88,22 +103,22 @@ def backup_path(local_path, backup_path):
     run_cmd(cmd, expected_returncode)
 
 
-def archive_dir(path):
+def archive_path(path):
     """Use tar+gzip (7z on Windows) to zip directory contents into single, compressed file."""
-    fname_archive = path.with_suffix(".tgz")
+    archive = path.with_suffix(".tgz")
     system = platform.system()
     if system == "Linux":
         # (c)reate archive as a (f)ile, use (z)ip compression
-        cmd = ["tar", "cfz", str(fname_archive), str(path)]
+        cmd = ["tar", "cfz", str(archive), str(path)]
         run_cmd(cmd, expected_returncode=0)
     elif system == "Windows":
         # Using 7z to mimic 'tar cfz' as per this post:
         # https://superuser.com/questions/244703/how-can-i-run-the-tar-czf-command-in-windows
-        cmd = f"7z -ttar a dummy {path}\* -so | 7z -si -tgzip a {fname_archive}"
+        cmd = f"7z -ttar a dummy {path}\* -so | 7z -si -tgzip a {archive}"
         run_cmd(cmd, expected_returncode=0, shell=True)
     else:
         raise BackupError("Do not recognize system: %s" % system)
-    return fname_archive
+    return archive
 
 
 def backup_pattern(local_dir, local_pattern, backup_dir):

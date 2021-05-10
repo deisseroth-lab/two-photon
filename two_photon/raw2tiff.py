@@ -28,20 +28,17 @@ class RippingError(Exception):
 
 
 @click.command()
-@click.pass_context
-def raw2tiff(ctx):
+@click.pass_obj
+def raw2tiff(layout):
     """Convert Bruker RAW files to TIFF files via ripper.
 
     Parameters
     ----------
-    ctx : click's context object
-        The underlying object should contain "path" an "acquisition" global flags
+    layout : Layout object
+        Object used to determine path naming
     """
-    path = ctx.obj["path"]
-    acquisition = ctx.obj["acquisition"]
-
-    raw_path = path / "raw" / acquisition
-    tiff_path = path / "tiff" / acquisition
+    raw_path = layout.path("raw")
+    tiff_path = layout.path("tiff")
 
     # Bruker software appends the raw_path basename to the given output directory.
     tiff_path_bruker = tiff_path / raw_path.name
