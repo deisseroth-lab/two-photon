@@ -18,7 +18,7 @@ def analyze(ctx, extra_paths):
 
     analyze_path = path / "analyze" / acquisition
 
-    data_paths = [p / "processed" / acquisition for p in [path] + extra_paths]
+    data_paths = [p / "preprocess" / acquisition for p in [path] + extra_paths]
 
     xml_prefix = acquisition.split("/")[-1]
     fname_xml = path / "raw" / acquisition / xml_prefix + ".xml"

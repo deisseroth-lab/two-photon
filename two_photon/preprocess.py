@@ -23,12 +23,12 @@ def preprocess(ctx, stim_channel, shift, buffer, settle):
     acquisition = ctx.obj["acquisition"]
 
     # Input files
-    convert_path = path / "processed" / acquisition / "convert"
+    convert_path = path / "convert" / acquisition
     orig_h5_path = convert_path / "orig.h5"
     voltage_h5_path = convert_path / "voltage.h5"
 
     # Output files
-    preprocess_path = path / "processed" / acquisition
+    preprocess_path = path / "preprocess" / acquisition
     preprocess_path.mkdir(exist_ok=True)
     preprocess_h5_path = preprocess_path / "preprocess.h5"
     artefacts_path = preprocess_path / "artefacts.h5"

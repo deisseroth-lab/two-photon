@@ -48,10 +48,10 @@ def convert(ctx, channel, fix_bruker_tiff):
     # Input filenames
     voltage_prefix = acquisition.split("/")[-1]
     voltage_csv_path = path / "raw" / acquisition / f"{voltage_prefix}_Cycle00001_VoltageRecording_001.csv"
-    tiff_path = path / "processed" / acquisition / "tiff"
+    tiff_path = path / "tiff" / acquisition
 
     # Output filenames
-    convert_path = path / "processed" / acquisition / "convert"
+    convert_path = path / "convert" / acquisition
     convert_path.mkdir(exist_ok=True)
     orig_h5_path = convert_path / "orig.h5"
     voltage_h5_path = convert_path / "voltage.h5"

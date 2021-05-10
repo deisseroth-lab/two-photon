@@ -41,7 +41,7 @@ def raw2tiff(ctx):
     acquisition = ctx.obj["acquisition"]
 
     raw_path = path / "raw" / acquisition
-    tiff_path = path / "processed" / acquisition / "tiff"
+    tiff_path = path / "tiff" / acquisition
 
     # Bruker software appends the raw_path basename to the given output directory.
     tiff_path_bruker = tiff_path / raw_path.name
