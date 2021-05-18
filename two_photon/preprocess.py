@@ -55,17 +55,37 @@ def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
 
     df_voltage = pd.read_hdf(voltage_h5_path)
 
+    period = utils.frame_period(layout)
+    y_px = data.shape[2]  # shape is t, z, y, x
+    capture_time_ms = 1000 * period
+    shift_ms = capture_time_ms * shift_px / y_px
+    buffer_ms = capture_time_ms * buffer_px / y_px
+
+    df_artefacts, data_processed = _preprocess(df_voltage, data, stim_channel_name, shift_ms, buffer_ms, settle_ms)
+
+    df_artefacts.to_hdf(artefacts_path, "artefacts")
+    logger.info("Stored artefacts in %s\npreview:\n%s", artefacts_path, df_artefacts.head())
+
+    if preprocess_h5_path.exists():
+        logging.warning("Removing existing preprocessed hdf5 image file: %s", preprocess_h5_path)
+        preprocess_h5_path.unlink()
+    logger.info("Writing preprocessed image data to hdf5: %s" % preprocess_h5_path)
+
+    with h5py.File(preprocess_h5_path, "w") as h5file:
+        h5file.create_dataset("data", data=data_processed)
+
+    logger.info("Done writing preprocessed image data hdf5")
+
+    logger.info("Done")
+
+
+def _preprocess(df_voltage, data, stim_channel_name, shift_ms, buffer_ms, settle_ms):
+    """Internal method of preprocess with no I/O for testing."""
     frames = df_voltage["frame starts"].apply(lambda x: 1 if x > 1 else 0)
     frames = frames[frames.diff() > 0.5].index
     frame_start = frames[:-1]
     frame_stop = frames[1:] - settle_ms
     df_frames = pd.DataFrame({"start": frame_start, "stop": frame_stop})
-
-    period = utils.frame_period(layout)
-    y_px = data.shape[2]  # shape is t, z, y, x
-    capture_time_ms = (1000 * period) - settle_ms
-    shift_ms = capture_time_ms * shift_px / y_px
-    buffer_ms = capture_time_ms * buffer_px / y_px
 
     stims = df_voltage[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
     stim_start = stims[stims.diff() > 0.5].index + shift_ms
@@ -85,28 +105,15 @@ def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
 
     df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims, data.shape)
 
-    df_artefacts.to_hdf(artefacts_path, "artefacts")
-    logger.info("Stored artefacts in %s\npreview:\n%s", artefacts_path, df_artefacts.head())
-
     # Mask stim regions with nan, and then interpolate values for those pixels.
+    # Temporarily use float32 in order to use nan.
     logger.info("Identifying artefacts")
     data = data.astype(np.float32)
     for t, z, y0, y1 in df_artefacts[["t", "z", "pixel_start", "pixel_stop"]].values:
         data[t, z, y0:y1] = np.nan
+
     logger.info("Interpolating")
     data = interpolate.interpolate_nan(data)
     data[data < 0] = 0
     data[data > 65535] = 65535
     data = data.astype(np.uint16)
-
-    if preprocess_h5_path.exists():
-        logging.warning("Removing existing preprocessed hdf5 image file: %s", preprocess_h5_path)
-        preprocess_h5_path.unlink()
-    logger.info("Writing preprocessed image data to hdf5: %s" % preprocess_h5_path)
-
-    with h5py.File(preprocess_h5_path, "w") as h5file:
-        h5file.create_dataset("data", data=data)
-
-    logger.info("Done writing preprocessed image data hdf5")
-
-    logger.info("Done")
