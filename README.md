@@ -2,12 +2,168 @@
 
 This repository contains utilities for analyzing 2p data:
 
-- [Ripping](#ripping)
-- [Suite2p Pipeline](#suite2p-pipeline)
+- [Analysis Pipeline](#analysis-pipeline)
+- [Ripping Containers](#ripping-containers)
 
-## Ripping
+## Analysis Pipeline
+
+The analysis pipeline consists of the following stages:
+
+- raw2tiff: converts Bruker proprietary output format to a TIFF stack
+- convert: converts tiff and csv/text files to hdf5.
+- preprocess: detect and remove stim artefacts
+- analyze: run suite2p, optionally combining multiple preprocessed datasets
+- backup: back up input/intermediate/output data to a safe place
+
+### Setup
+
+First, install the code. You can use [GitHub desktop](https://desktop.github.com/), or use git on the command line. This only has to be done once.
+
+```bash
+git clone https://github.com/deisseroth-lab/two-photon.git
+```
+
+Next, install the environment. You will need to install [conda](https://docs.conda.io/en/latest/) first. Then
+use the following command from within the directory where you installed the repo above. This also only has
+to be done once.
+
+```bash
+conda env create -f environment.yml -n two-photon
+conda activate two-photon
+pip install -e .  # installs the 2p script
+```
+
+### Executing
+
+To run the processing script, the environment needs to be activated. This needs to be done each time you start a
+new terminal.
+
+```bash
+conda activate two-photon
+```
+
+The executable is called `2p`, and each stage is a different subcommand
+that can be run. It is possible to run multiple stages by specifying
+multiple subcommands.
+
+#### Data Layout and Global Flags
+
+The scripts required a strict layout of data, and assume the input data
+follows a directory structure and filenaming that the Bruker scopes
+create. The data is setup in subdirectories of a `base-path`, named
+by the stage and the `acquisition` name.
+
+To point the script to the correct location of of dataset,
+use the following flags:
+
+```txt
+  --base-path PATH    Top-level storage for local data.  [required]
+  --acquisition TEXT  Acquisition sub-directory to process.  [required]
+```
+
+Using the following global flags (meaning after `2p` but before other commands or flags):
+
+```sh
+2p \
+    --base-path /my/data \
+    --acquisition 20210428M198/slm-001
+```
+
+will use the following locations for the data. Note the expected location of the raw data.
+
+| data type                                   | location                                |
+| ------------------------------------------- | --------------------------------------- |
+| RAWDATA, csv, xml, and env files from scope | `/my/data/raw/20210428M198/slm-001`     |
+| tiff stacks                                 | `/my/data/tiff/20210428M198/slm-001`    |
+| convert                                     | `/my/data/convert/20210428M198/slm-001` |
+| analyze - suite2p output                    | `/my/data/analyze/20210428M198/slm-001` |
+
+#### Command: raw2tiff
+
+The raw2tiff command runs the Bruker software to rip the RAWDATA into a tiff stack.
+This is a Windows-only command, until the kinks of running on Linux are ironed out.
+
+Example:
+
+```sh
+2p \
+    --base-path /my/data \
+    --acquisition 20210428M198/slm-001
+    raw2tiff
+```
+
+### Command: convert
+
+The `convert` command converts the tiff stacks and voltage data to hdf5.
+
+Example:
+
+```sh
+2p \
+    --base-path /my/data \
+    --acquisition 20210428M198/slm-001 \
+    convert --channel 3
+```
+
+### Command: preprocess
+
+The `preprocess` command performs processing like stim removal on the data. It should be
+run even if there are no stim artefacts (in which case, no actual computation is done),
+so that downstream stages find the data in the correct place.
+
+Example:
+
+```sh
+2p \
+    --base-path /my/data \
+    --acquisition 20210428M198/slm-001 \
+    preprocess --stim-channel-name=respir
+```
+
+### Command: analyze
+
+The `analyze` command runs Suite2p on the preprocessed dataset.
+
+Example:
+
+```sh
+2p \
+    --base-path /media/hdd0/two-photon/drinnenb/work \
+    --acquisition 20210428M198/slm-001 \
+    analyze
+```
+
+Example of analyzing multiple acquisitions together:
+
+```sh
+2p \
+    --base-path /media/hdd0/two-photon/drinnenb/work \
+    --acquisition 20210428M198/slm-001 \
+    analyze --extra-acquisitions 20210428M198/slm-000
+```
+
+## Using multiple commands at once
+
+Several commands can be run in succession by adding each one to your command line with its
+necessary flags.
+
+```sh
+2p \
+    --base-path /media/hdd0/two-photon/drinnenb/work \
+    --acquisition 20210428M198/slm-001 \
+    raw2tiff \
+    convert --channel 3 \
+    preprocess --stim-channel-name=respir \
+    analyze --extra-acquisitions 20210428M198/slm-000
+```
+
+## Ripping Containers
 
 Ripping is the process for converting a Bruker RAWDATA file into a set of TIFF files.
+
+Containers exist to help run the ripping on any platform, but it has been found they
+perform sub-optimally and are 10-100x slower than ripping on a Windows machine using
+the native ripper. It is advised NOT to use this yet.
 
 The lab has created [Docker](https://www.docker.com/) and
 [Singularity](https://sylabs.io/docs/) containers with the Bruker Prairie View software,
@@ -120,63 +276,7 @@ Executing rip.  It is OK to see 1 err and 4 fixme statements in what follows
 2020-09-03 14:42:04.975 rip:88 INFO cleaned up!
 ```
 
-## TIFF->HDF5
-
-A separate script is available to convert the TIFF stack generated by the ripper into HDF5
-format.  A single HDF5 files is easier to process and copy that thousands of small TIFF files.
-The HDF5 format is usable by programs like Suite2P.
-
-The following is a quickstart to setup and environment and run the TIFF->HDF5 conversion.
-For safety, it will not delete the tiff files unless you specify `--delete_tiffs`.
-
-```sh
-git clone https://github.com/deisseroth-lab/two-photon.git
-cd two-photon
-git checkout chrisroat-tiff2hdf  # Branch currently under development
-conda env create -f environment.yml
-conda activate two-photon
-cd two-photon  # Yes, there is a two-photon directory inside a two-photon directory.
-# Many TIFF libraries will read in an entire OME stack when given just the first file:
-python tiff_to_hdf5.py --infile=/path/to/first/tiff/blahblah_Cycle00001_Ch2_000001.ome.tif --outfile=/path/to/output/dir/data.hdf5
-```
-
-## Suite2p Pipeline
-
-The analysis pipeline can run several steps of standard preprocessing of 2p data:
-
-- rip
-- preprocess to remove stim artefacts
-- run Suite2p (optionally combining with previously preprocessed sessions)
-- backup input data
-- backup output data
-
-First, install the code. You can use [GitHub desktop](https://desktop.github.com/), or use git on the command line. This only has to be done once.
-
-```bash
-git clone https://github.com/deisseroth-lab/two-photon.git
-```
-
-Next, install the environment. You will need to install [conda](https://docs.conda.io/en/latest/) first. Then
-use the following command from within the directory where you installed the repo above. This also only has
-to be done once.
-
-```bash
-conda env create -f environment.yml -n two-photon
-```
-
-To run the processing script, the environment needs to be activated. This needs to be done each time start a terminal.
-
-```bash
-conda activate two-photon
-```
-
-Running the code requires running a command-line program with flags to denote where the input data is, where the output
-data and logs should go, and what stages of the pipeline should be run.
-
-See the comments at the top of the [preprocess script](https://github.com/deisseroth-lab/two-photon/blob/master/two-photon/process.py)
-for examples of how to run the processing.
-
-## Building Containers
+### Building Containers
 
 To build all available containers, which will first build the Docker container, and then convert it
 to a Singularity container:

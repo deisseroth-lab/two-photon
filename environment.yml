@@ -1,26 +1,34 @@
 name: two-photon
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - black
-  - click=7.1.2
-  - click-option-group=0.5.1
-  - dask=2021.4.1
-  - h5py=2.10.0
-  - isort
-  - numpy=1.19.1
-  - pandas=1.0.5
-  - pip=20.1.1
-  - pyqt=5.12.3
-  - pytables=3.6.1
-  - python=3.7.10
-  - scikit-image=0.17.2
-  - scipy=1.5.2
-  - tifffile=2021.4.8
-  - xmldiff=2.4
-  - zarr=2.8.1
+  - python>=3.7.6,<3.8
+  - mkl=2019.3
+  - pip
+  - mkl_fft=1.0.10
+  - tbb
+  - numpy<1.19.0
+  - numba<0.50.0
+  - matplotlib
+  - scipy
+  - scikit-learn
+  - click
+  - click-option-group
+  - pandas
+  - pytables
+  - tifffile
   - pip:
-      - suite2p[gui,nwb]==0.10.0
-      - click-pathlib==2020.3.13.0
-      - pyproject-flake8
+    - pyqt5
+    - pyqt5.sip
+    - h5py==2.10.0
+    - natsort
+    - rastermap>0.1.0
+    - tifffile
+    - scanimage-tiff-reader>=1.4.1
+    - pyqtgraph
+    - importlib-metadata
+    - paramiko
+    - pynwb
+    - sbxreader
+    - suite2p
+    - click-pathlib

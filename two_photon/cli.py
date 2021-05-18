@@ -8,7 +8,7 @@ from . import analyze, backup, convert, layout, preprocess, raw2tiff
 
 @click.group(chain=True)
 @click.pass_context
-@click.option("--base_path", type=Path(exists=True), required=True, help="Top-level storage for local data.")
+@click.option("--base-path", type=Path(exists=True), required=True, help="Top-level storage for local data.")
 @click.option("--acquisition", required=True, help="Acquisition sub-directory to process.")
 def cli(ctx, base_path, acquisition):
     logging.basicConfig(

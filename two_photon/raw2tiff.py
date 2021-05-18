@@ -30,13 +30,7 @@ class RippingError(Exception):
 @click.command()
 @click.pass_obj
 def raw2tiff(layout):
-    """Convert Bruker RAW files to TIFF files via ripper.
-
-    Parameters
-    ----------
-    layout : Layout object
-        Object used to determine path naming
-    """
+    """Convert Bruker RAW files to TIFF files via ripper."""
     raw_path = layout.path("raw")
     tiff_path = layout.path("tiff")
 

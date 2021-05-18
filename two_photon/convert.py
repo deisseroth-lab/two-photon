@@ -4,11 +4,9 @@ import logging
 import shutil
 
 import click
-import dask
-import dask.array as da
+import h5py
 import pandas as pd
 import tifffile
-import zarr
 
 from two_photon import correct_omexml
 
@@ -30,26 +28,21 @@ class ConvertError(Exception):
     required=True,
     help="Channel number of tiff stack to convert to hdf5",
 )
-@click.option("--fix_bruker_tiff", is_flag=True, default=False)
-def convert(layout, channel, fix_bruker_tiff):
-    """Convert an OME TIFF stack and the voltage recording data to an HDF5 file.
-
-    Parameters
-    ----------
-    layout : Layout object
-        Object used to determine path naming
-    channel: int
-        The channel of the TIFF stack to process
-    fix_bruker_tiff: boolean
-        Whether to first fix the broken OME XML metadata store in the tiff stack's master file.
-    """
+@click.option(
+    "--fix-tiff/--no-fix-tiff",
+    default=True,
+    help="Rewrite the master OME tiff to fix mis-specification by Bruker scopes",
+    show_default=True,
+)
+def convert(layout, channel, fix_tiff):
+    """Convert OME TIFF stack and voltage recording data to HDF5."""
     # Input filenames
     voltage_csv_path = layout.raw_voltage_path()
     tiff_path = layout.path("tiff")
 
     # Output filenames
     convert_path = layout.path("convert")
-    convert_path.mkdir(exist_ok=True)
+    convert_path.mkdir(parents=True, exist_ok=True)
     orig_h5_path = convert_path / "orig.h5"
     voltage_h5_path = convert_path / "voltage.h5"
 
@@ -74,7 +67,7 @@ def convert(layout, channel, fix_bruker_tiff):
         )
     tiff_init = tiff_init[0]
 
-    if fix_bruker_tiff:
+    if fix_tiff:
         tiff_init_fixed = tiff_init.with_suffix(".fixed" + tiff_init.suffix)
         if tiff_init_fixed.exists():
             logger.warning("Deleting previously corrected Burker tiff: %s", str(tiff_init))
@@ -84,31 +77,16 @@ def convert(layout, channel, fix_bruker_tiff):
         tiff_init = tiff_init_fixed
 
     logger.info("Reading TIFF metadata")
-    zarr_store = tifffile.imread(tiff_init, aszarr=True)
-    data = zarr.open(zarr_store, mode="r")
+    data = tifffile.imread(tiff_init)
     logger.info("Found TIFF data with shape %s and type %s", data.shape, data.dtype)
-
-    # TODO: This is a guess on what the axes will be. Find out if there is metadata with
-    # axes naming.
-    if data.ndim == 4:  # (time, z, y, x)
-        logging.info("Assuming axes are time, z, y, x")
-        chunks = ("auto", -1, -1, -1)
-    elif data.ndim == 3:  # (time, y, x)
-        logging.info("Assuming axes are time, y, x")
-        chunks = ("auto", -1, -1)
-    else:
-        chunks = -1
-
-    data_dask = da.from_array(data, chunks=chunks)
 
     if orig_h5_path.exists():
         logging.warning("Removing existing hdf5 image file: %s", orig_h5_path)
         orig_h5_path.unlink()
     logger.info("Writing image data to hdf5: %s" % orig_h5_path)
-    # Read/write using single-thread ("synchronous").  If using SSD, could use additional workers.
-    # This isn't a piece that needs to be optimized yet, so keep it simple.
-    with dask.config.set(scheduler="synchronous"):
-        da.to_hdf5(orig_h5_path, "data", data_dask, compression="lzf", shuffle=True)
+
+    with h5py.File(orig_h5_path, "w") as h5file:
+        h5file.create_dataset("data", data=data)
     logger.info("Done writing image data hdf5")
 
     logger.info("Done")

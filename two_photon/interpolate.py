@@ -1,6 +1,4 @@
 """Utilities for interpolating stim artefact regions."""
-
-import dask.array as da
 import numpy as np
 import scipy.interpolate
 
@@ -22,8 +20,7 @@ def interpolate_nan(data, axis=0, kind="linear"):
     interpolated : dask.array
         Data with same shape as original data, with nan filled by interpolation.
     """
-    shape = (data.shape[axis],)
-    return da.apply_along_axis(interp1d_nan, axis, data, dtype=data.dtype, shape=shape, kind=kind)
+    return np.apply_along_axis(interp1d_nan, axis, data, kind=kind)
 
 
 def interp1d_nan(data, kind="linear"):

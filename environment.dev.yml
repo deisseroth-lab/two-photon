@@ -1,0 +1,10 @@
+name: two-photon
+channels:
+  - conda-forge
+dependencies:
+  - pip
+  - black
+  - isort
+  - xmldiff
+  - pip:
+      - pyproject-flake8
