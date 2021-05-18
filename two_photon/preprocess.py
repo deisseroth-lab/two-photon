@@ -5,26 +5,25 @@ import h5py
 import numpy as np
 import pandas as pd
 
-from two_photon import artefact_detect, interpolate
+from two_photon import artefact_detect, interpolate, utils
 
 logger = logging.getLogger(__name__)
 
 
-# TODO: Convert shifts/buffers to pixels.
 @click.command()
 @click.pass_obj
 @click.option("--stim-channel-name", help="Name of the stim signal")
 @click.option(
-    "--shift-ms",
+    "--shift-px",
     type=float,
     default=0,
-    help="Time (milliseconds) used offset to stim windows, to adjust for unknown jitter in timing.",
+    help="Number of pixel rows to offset stim windows, to adjust for unknown jitter in timing.",
 )
 @click.option(
-    "--buffer-ms",
+    "--buffer-px",
     type=float,
     default=0,
-    help="Time (milliseconds) used to lengthen stim windows, to adjust for unknown jitter in timing.",
+    help="Number for pixel rows to lengthen stim windows, to adjust for unknown jitter in timing.",
 )
 @click.option(
     "--settle-ms",
@@ -32,7 +31,7 @@ logger = logging.getLogger(__name__)
     default=0,
     help="Time (milleseconds) during a frame time period during which acquisition does not happen.",
 )
-def preprocess(layout, stim_channel_name, shift_ms, buffer_ms, settle_ms):
+def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
     """Removes artefacts from raw data."""
     # Input files
     convert_path = layout.path("convert")
@@ -61,6 +60,12 @@ def preprocess(layout, stim_channel_name, shift_ms, buffer_ms, settle_ms):
     frame_start = frames[:-1]
     frame_stop = frames[1:] - settle_ms
     df_frames = pd.DataFrame({"start": frame_start, "stop": frame_stop})
+
+    period = utils.frame_period(layout)
+    y_px = data.shape[2]  # shape is t, z, y, x
+    capture_time_ms = (1000 * period) - settle_ms
+    shift_ms = capture_time_ms * shift_px / y_px
+    buffer_ms = capture_time_ms * buffer_px / y_px
 
     stims = df_voltage[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
     stim_start = stims[stims.diff() > 0.5].index + shift_ms

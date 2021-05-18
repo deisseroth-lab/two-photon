@@ -1,10 +1,11 @@
 """Runs Suite2p analysis over one or more acquisitions."""
 import json
 import logging
-from xml.etree import ElementTree
 
 import click
 import h5py
+
+from two_photon import utils
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +28,7 @@ def analyze(layout, extra_acquisitions):
     data_paths = [preprocess_path] + [layout.path("preprocess", acq) for acq in extra_acquisitions]
     data_paths = [p / "preprocess" for p in data_paths]
 
-    xml_path = layout.raw_xml_path()
-    mdata_root = ElementTree.parse(xml_path).getroot()
-    element = mdata_root.find('.//PVStateValue[@key="framePeriod"]')
-    period = float(element.attrib["value"])
+    period = utils.frame_period(layout)
 
     z_planes = 0
     for data_path in data_paths:
