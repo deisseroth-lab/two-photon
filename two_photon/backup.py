@@ -64,7 +64,6 @@ def backup(layout, backup_path, backup_stage):
         if stage == "tiff":  # TIFF stacks need to be archived first.
             archive = archive_path(local_path)
             backup_path(archive, remote_path / archive.name)
-            archive.unlink()
         else:
             backup_path(local_path, remote_path)
 
