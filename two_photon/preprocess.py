@@ -5,7 +5,7 @@ import h5py
 import numpy as np
 import pandas as pd
 
-from two_photon import artefact_detect, interpolate, utils
+from two_photon import artefact_detect, interpolate, qa, utils
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +38,13 @@ def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
     orig_h5_path = convert_path / "orig.h5"
     voltage_h5_path = convert_path / "voltage.h5"
 
-    # Output files
+    # Output files.  The preprocess.h5 has to be alone in a separate directory, otherwise
+    # when Suite2p runs it fail because it tries to read all al the h5 files in the directory,
+    # which would included artefacts.h5.
     preprocess_path = layout.path("preprocess")
     preprocess_h5_path = preprocess_path / "preprocess" / "preprocess.h5"
     artefacts_path = preprocess_path / "artefacts" / "artefacts.h5"
+    qa_plot_path = preprocess_path / "artefacts" / "qa.png"
 
     preprocess_h5_path.parent.mkdir(parents=True, exist_ok=True)
     artefacts_path.parent.mkdir(parents=True, exist_ok=True)
@@ -63,6 +66,9 @@ def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
 
     df_artefacts, data_processed = _preprocess(df_voltage, data, stim_channel_name, shift_ms, buffer_ms, settle_ms)
 
+    qa_plot = qa.side_by_side(data, data_processed, df_artefacts)
+
+    # Write output
     df_artefacts.to_hdf(artefacts_path, "artefacts")
     logger.info("Stored artefacts in %s\npreview:\n%s", artefacts_path, df_artefacts.head())
 
@@ -74,7 +80,7 @@ def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
     with h5py.File(preprocess_h5_path, "w") as h5file:
         h5file.create_dataset("data", data=data_processed)
 
-    logger.info("Done writing preprocessed image data hdf5")
+    qa_plot.savefig(qa_plot_path)
 
     logger.info("Done")
 
@@ -117,3 +123,5 @@ def _preprocess(df_voltage, data, stim_channel_name, shift_ms, buffer_ms, settle
     data[data < 0] = 0
     data[data > 65535] = 65535
     data = data.astype(np.uint16)
+
+    return df_artefacts, data
