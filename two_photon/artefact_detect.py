@@ -33,7 +33,7 @@ def artefact_regions(df_frames, df_stims, shape):
     check_frame(df_frames)
     check_frame(df_stims)
 
-    # Removes stims which do no occur within some frame.
+    # Removes stims which do not occur within the df_frames limits.
     df_stims = df_stims[df_stims["stop"] > df_frames["start"].iloc[0]]
     df_stims = df_stims[df_stims["start"] < df_frames["stop"].iloc[-1]]
 
@@ -91,7 +91,7 @@ def split_multi_frame_stim(df, shape_tz, shape_y):
 
 
 def split_multi_frame_stim_row(row, shape_tz, shape_y):
-    if row.t_start == row.t_stop and row.z_start == row.t_stop:
+    if row.t_start == row.t_stop and row.z_start == row.z_stop:
         return [[row.t_start, row.z_start, row.pixel_start, row.pixel_stop]]
 
     idx_start, idx_stop = np.ravel_multi_index([(row.t_start, row.t_stop), (row.z_start, row.z_stop)], shape_tz)

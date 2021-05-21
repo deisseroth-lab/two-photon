@@ -5,6 +5,7 @@ dependencies:
   - pip
   - black
   - isort
+  - pytest
   - xmldiff
   - pip:
       - pyproject-flake8

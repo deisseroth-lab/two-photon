@@ -58,15 +58,15 @@ def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
 
     df_voltage = pd.read_hdf(voltage_h5_path)
 
-    period = utils.frame_period(layout)
-    y_px = data.shape[2]  # shape is t, z, y, x
-    capture_time_ms = 1000 * period
-    shift_ms = capture_time_ms * shift_px / y_px
-    buffer_ms = capture_time_ms * buffer_px / y_px
+    period_sec = utils.frame_period(layout)
+    y_px = data.shape[2]  # dims are t, z, y, x
+    px_to_ms = 1000 * period_sec / y_px
+    shift_ms = shift_px * px_to_ms
+    buffer_ms = buffer_px * px_to_ms
 
     df_artefacts, data_processed = _preprocess(df_voltage, data, stim_channel_name, shift_ms, buffer_ms, settle_ms)
 
-    qa_plot = qa.side_by_side(data, data_processed, df_artefacts)
+    qa_plot = qa.side_by_side_comparison(data, data_processed, df_artefacts)
 
     # Write output
     df_artefacts.to_hdf(artefacts_path, "artefacts")
@@ -81,6 +81,7 @@ def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
         h5file.create_dataset("data", data=data_processed)
 
     qa_plot.savefig(qa_plot_path)
+    logger.info("Stored QA plot in %s", qa_plot_path)
 
     logger.info("Done")
 
