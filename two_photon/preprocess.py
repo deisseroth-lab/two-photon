@@ -121,8 +121,7 @@ def _preprocess(df_voltage, data, stim_channel_name, shift_ms, buffer_ms, settle
 
     logger.info("Interpolating")
     data = interpolate.interpolate_nan(data)
-    data[data < 0] = 0
-    data[data > 65535] = 65535
+    data = np.clip(data, 0, 65535)
     data = data.astype(np.uint16)
 
     return df_artefacts, data
