@@ -142,6 +142,30 @@ Example of analyzing multiple acquisitions together:
     analyze --extra-acquisitions 20210428M198/slm-000
 ```
 
+Example of using non-default Suite2p options file (json format):
+
+```sh
+2p \
+    --base-path /media/hdd0/two-photon/drinnenb/work \
+    --acquisition 20210428M198/slm-001 \
+    analyze --suite2p-params-file two_photon/ops_files/drinnedb.json
+```
+
+### Command: backup
+
+The `backup` command copies the output of one or more stages to backup directory.
+
+```sh
+2p \
+    --base-path /media/hdd0/two-photon/drinnenb/work \
+    --acquisition 20210428M198/slm-001 \
+    backup \
+    --backup-path /media/hdd1/oak/mount/two-photon/backup \
+    --backup-stage raw,tiff
+```
+
+--backup_path"
+
 ## Using multiple commands at once
 
 Several commands can be run in succession by adding each one to your command line with its
