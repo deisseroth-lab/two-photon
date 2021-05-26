@@ -33,19 +33,39 @@ class BackupError(Exception):
 #     backup(trial_order_path, dirname_backup / "trial_order")
 #     # backup_pattern(slm_root, slm_trial_order_pattern, dirname_backup / 'trial_order')
 
+ALLOWED_BACKUP_OPTIONS = ["raw", "tiff", "convert", "preprocess", "analyze"]
+
+
+class BackupOptions(click.ParamType):
+    name = "backup_option"
+
+    def convert(self, value, param, ctx):
+        if isinstance(value, str):
+            if value == "all":
+                return ALLOWED_BACKUP_OPTIONS
+            stages = value.split(",")
+            unknown_stages = [stage for stage in stages if stage not in ALLOWED_BACKUP_OPTIONS]
+            if unknown_stages:
+                self.fail(f"'{value}' contains unknown stages: %s." % ",".join(unknown_stages))
+            return stages
+        return value
+
 
 @click.command()
 @click.pass_obj
 @click.option(
-    "--backup_path", type=Path(exists=True), required=True, help="Top-level directory where backup data resides"
+    "--backup-path", type=Path(exists=True), required=True, help="Top-level directory where backup data resides"
 )
 @click.option(
-    "--backup_stage",
-    type=click.Choice(["raw", "convert", "preprocess", "analyze"]),
-    multiple=True,
-    help="Names of stages to backup",
+    "--backup-stages",
+    type=BackupOptions(),
+    required=True,
+    help=(
+        'Names of stages to backup.  Allowed to be "all" or comma separated list from: %s'
+        % ", ".join(ALLOWED_BACKUP_OPTIONS)
+    ),
 )
-def backup(layout, backup_path, backup_stage):
+def backup(layout, backup_path, backup_stages):
     """Backs up data from one or more pipeline stages.
 
     Parameters
@@ -57,18 +77,18 @@ def backup(layout, backup_path, backup_stage):
     backup_stages: list of str
         Names of stages to backup
     """
-    for stage in backup_stage:
+    for stage in backup_stages:
         local_path = layout.path(stage)
         remote_path = layout.backup_path(backup_path, stage)
 
         if stage == "tiff":  # TIFF stacks need to be archived first.
             archive = archive_path(local_path)
-            backup_path(archive, remote_path / archive.name)
+            backup_one_path(archive, remote_path / archive.name)
         else:
-            backup_path(local_path, remote_path)
+            backup_one_path(local_path, remote_path)
 
 
-def backup_path(local_path, backup_path):
+def backup_one_path(local_path, backup_path):
     """Sync local data to backup directory."""
     os.makedirs(backup_path.parent, exist_ok=True)
     system = platform.system()
