@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 import click
@@ -11,12 +12,21 @@ from . import analyze, backup, convert, layout, preprocess, raw2tiff
 @click.option("--base-path", type=Path(exists=True), required=True, help="Top-level storage for local data.")
 @click.option("--acquisition", required=True, help="Acquisition sub-directory to process.")
 def cli(ctx, base_path, acquisition):
+    dt = datetime.datetime.now().strftime("%Y%m%d.%H%M%S")
+
+    lo = layout.Layout(base_path, acquisition)
+    ctx.obj = lo
+
+    logs_path = lo.path("logs")
+    logs_path.mkdir(parents=True, exist_ok=True)
+
+    fname_logs = logs_path / f"{dt}.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s.%(msecs)03d %(module)s:%(lineno)s %(levelname)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[logging.StreamHandler(), logging.FileHandler(fname_logs)],
     )
-    ctx.obj = layout.Layout(base_path, acquisition)
 
 
 cli.add_command(raw2tiff.raw2tiff)
