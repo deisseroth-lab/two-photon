@@ -1,0 +1,8 @@
+{
+    "save_mat": true,
+    "bidi_corrected": true,
+    "spatial_hp": 50,
+    "sparse_mode": false,
+    "threshold_scaling": 3,
+    "diameter": 6
+}
