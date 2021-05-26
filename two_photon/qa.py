@@ -1,9 +1,14 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 
-def side_by_side_comparison(uncorrected, corrected, df_artefacts, nsamples=15):
+def side_by_side_comparison(uncorrected, corrected, df_artefacts, nsamples=15, random=None):
     """Makes a figure showing a sample of frames with artefacts, before and after correction."""
-    df_samples = df_artefacts.sample(nsamples).sort_values(["t", "z"])
+    if random is not None:
+        df_samples = df_artefacts.sample(nsamples, random_state=random).sort_values(["t", "z"])
+    else:
+        indices = np.linspace(0, len(df_artefacts.index) - 1, num=nsamples)
+        df_samples = df_artefacts.iloc[indices]
 
     ncols = 2
     figure, axes = plt.subplots(
