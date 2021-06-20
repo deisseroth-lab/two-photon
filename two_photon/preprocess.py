@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 @click.command()
 @click.pass_obj
+@click.option("--frame-channel-name", help="Name of the frame start signal")
 @click.option("--stim-channel-name", help="Name of the stim signal")
 @click.option(
     "--shift-px",
@@ -31,7 +32,18 @@ logger = logging.getLogger(__name__)
     default=0,
     help="Time (milleseconds) during a frame time period during which acquisition does not happen.",
 )
-def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
+@click.option("--piezo-period-frames", type=int, help="The period of piezo oscillation, in number of frames.")
+@click.option("--piezo-skip-frames", type=int, help="The number of frames skipped in each piezo period.")
+def preprocess(
+    layout,
+    frame_channel_name,
+    stim_channel_name,
+    shift_px,
+    buffer_px,
+    settle_ms,
+    piezo_period_frames,
+    piezo_skip_frames,
+):
     """Removes artefacts from raw data."""
     # Input files
     convert_path = layout.path("convert")
@@ -64,7 +76,10 @@ def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
     shift_ms = shift_px * px_to_ms
     buffer_ms = buffer_px * px_to_ms
 
-    df_artefacts, data_processed = _preprocess(df_voltage, data, stim_channel_name, shift_ms, buffer_ms, settle_ms)
+    df_frames = extract_frames(df_voltage[frame_channel_name], settle_ms, piezo_period_frames, piezo_skip_frames)
+    df_stims = extract_stims(df_voltage[stim_channel_name], shift_ms, buffer_ms)
+
+    df_artefacts, data_processed = _preprocess(df_frames, df_stims, data)
 
     qa_plot = qa.side_by_side_comparison(data, data_processed, df_artefacts)
 
@@ -86,18 +101,8 @@ def preprocess(layout, stim_channel_name, shift_px, buffer_px, settle_ms):
     logger.info("Done")
 
 
-def _preprocess(df_voltage, data, stim_channel_name, shift_ms, buffer_ms, settle_ms):
+def _preprocess(df_frames, df_stims, data):
     """Internal method of preprocess with no I/O for testing."""
-    frames = df_voltage["frame starts"].apply(lambda x: 1 if x > 1 else 0)
-    frames = frames[frames.diff() > 0.5].index
-    frame_start = frames[:-1]
-    frame_stop = frames[1:] - settle_ms
-    df_frames = pd.DataFrame({"start": frame_start, "stop": frame_stop})
-
-    stims = df_voltage[stim_channel_name].apply(lambda x: 1 if x > 1 else 0)
-    stim_start = stims[stims.diff() > 0.5].index + shift_ms
-    stim_stop = stims[stims.diff() < -0.5].index + shift_ms + buffer_ms
-    df_stims = pd.DataFrame({"start": stim_start, "stop": stim_stop})
 
     num_frames_data = data.shape[0] * data.shape[1]  # time-slices * z-planes
     num_frames_voltage = df_frames.shape[0]
@@ -125,3 +130,28 @@ def _preprocess(df_voltage, data, stim_channel_name, shift_ms, buffer_ms, settle
     data = data.astype(np.uint16)
 
     return df_artefacts, data
+
+
+def extract_frames(frame_signal, settle_ms=0, piezo_period_frames=None, piezo_skip_frames=None):
+    """Extract frame start/stop times from a voltage recording of the frame trigger signal."""
+    frames = frame_signal.apply(lambda x: 1 if x > 1 else 0)
+    frames = frames[frames.diff() > 0.5].index
+    frame_start = frames[:-1]
+    frame_stop = frames[1:] - settle_ms
+    df_frames = pd.DataFrame({"start": frame_start, "stop": frame_stop})
+    df_frames.index.name = "frame"
+    if piezo_period_frames is not None:
+        assert piezo_skip_frames, "piezo_skip_frames must be set if piezeo_period_frames is set"
+        piezo_sel = (np.arange(len(df_frames.index)) % piezo_period_frames) >= piezo_skip_frames
+        df_frames = df_frames[piezo_sel]
+    return df_frames
+
+
+def extract_stims(stim_signal, shift_ms=0, buffer_ms=0):
+    """Extract stime start/stop times from a voltage recording of the stim trigger signal."""
+    stims = stim_signal.apply(lambda x: 1 if x > 1 else 0)
+    stim_start = stims[stims.diff() > 0.5].index + shift_ms
+    stim_stop = stims[stims.diff() < -0.5].index + shift_ms + buffer_ms
+    df_stims = pd.DataFrame({"start": stim_start, "stop": stim_stop})
+    df_stims.index.name = "stim"
+    return df_stims
