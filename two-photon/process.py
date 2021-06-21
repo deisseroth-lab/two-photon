@@ -4,9 +4,9 @@
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --run_suite2p
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --run_suite2p --prev_recording 20200310M88:regL23-000
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_output --ETL_depths=30_0_30
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_output --ETL_depths=-30_0_30
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_data
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ --backup_hdf5
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200310M88:regL23-000 --backup_dir=O:\users\drinnenb\Data2p\ 
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:VRmm-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess --run_suite2p --backup_output --backup_data --zip_data
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess --run_suite2p --prev_recording 202003M89:regL23-000
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip --preprocess --run_suite2p --prev_recording 20200325M89:VRmm-000 --backup_output --backup_data
@@ -246,8 +246,9 @@ def run_suite2p(hdf5_list, dirname_output, mdata):
     fs_param = 1. / (mdata['period'] * z_planes)
 
     # Load suite2p only right before use, as it has a long load time.
-    from suite2p import run_s2p
-    default_ops = run_s2p.default_ops()
+    #from suite2p import run_s2p
+    import suite2p
+    default_ops = suite2p.default_ops()
     params = {
         'input_format': 'h5',
         'data_path': [str(f.parent) for f in hdf5_list],
@@ -256,15 +257,21 @@ def run_suite2p(hdf5_list, dirname_output, mdata):
         'fs': fs_param,
         'save_mat': True,
         'bidi_corrected': True,
-        'spatial_hp': 50,
+        'spatial_hp': 100,#50,
         'sparse_mode': False,
         'threshold_scaling': 3,
-        'diameter': 6,
+        'diameter': 12,#6,
+        'nbinned':2500,
+        'tau':1.,
+        'batch_size': 250, #default 500
+        'spatial_scale':2., #default 0
+
+        
     }
     logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in hdf5_list), params)
     with open(dirname_output / 'recording_order.json', 'w') as fout:
         json.dump([str(e) for e in hdf5_list], fout, indent=4)
-    run_s2p.run_s2p(ops=default_ops, db=params)
+    suite2p.run_s2p(ops=default_ops, db=params)
 
 
 def parse_args():
