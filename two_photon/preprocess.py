@@ -5,15 +5,15 @@ import h5py
 import numpy as np
 import pandas as pd
 
-from two_photon import artefact_detect, interpolate, qa, utils
+from two_photon import artefact_detect, interpolate, utils
 
 logger = logging.getLogger(__name__)
 
 
 @click.command()
 @click.pass_obj
-@click.option("--frame-channel-name", help="Name of the frame start signal")
-@click.option("--stim-channel-name", help="Name of the stim signal")
+@click.option("--frame-channel-name", required=True, help="Name of the frame start signal")
+@click.option("--stim-channel-name", required=True, help="Name of the stim signal")
 @click.option(
     "--shift-px",
     type=float,
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option("--piezo-period-frames", type=int, help="The period of piezo oscillation, in number of frames.")
 @click.option("--piezo-skip-frames", type=int, help="The number of frames skipped in each piezo period.")
+@click.option("--max-frames", type=int, help="Read in only max-frames image frames of original data.")
 def preprocess(
     layout,
     frame_channel_name,
@@ -43,6 +44,7 @@ def preprocess(
     settle_ms,
     piezo_period_frames,
     piezo_skip_frames,
+    max_frames,
 ):
     """Removes artefacts from raw data."""
     # Input files
@@ -56,18 +58,23 @@ def preprocess(
     preprocess_path = layout.path("preprocess")
     preprocess_h5_path = preprocess_path / "preprocess" / "preprocess.h5"
     artefacts_path = preprocess_path / "artefacts" / "artefacts.h5"
-    qa_plot_path = preprocess_path / "artefacts" / "qa.png"
 
     preprocess_h5_path.parent.mkdir(parents=True, exist_ok=True)
     artefacts_path.parent.mkdir(parents=True, exist_ok=True)
 
     if stim_channel_name is None:
+        logger.info("No stim channel given for artefact removal - passing through uncorrected data.")
         preprocess_h5_path.symlink_to(orig_h5_path)
         return
 
+    logger.info("Reading data from %s", orig_h5_path)
     with h5py.File(orig_h5_path, "r") as h5file:
-        data = h5file["data"][()]
+        if max_frames is not None:
+            data = h5file["data"][:max_frames]
+        else:
+            data = h5file["data"][()]
 
+    logger.info("Reading voltage data from %s", voltage_h5_path)
     df_voltage = pd.read_hdf(voltage_h5_path)
 
     period_sec = utils.frame_period(layout)
@@ -76,12 +83,11 @@ def preprocess(
     shift_ms = shift_px * px_to_ms
     buffer_ms = buffer_px * px_to_ms
 
+    logger.info("Identifying frame and stim windows")
     df_frames = extract_frames(df_voltage[frame_channel_name], settle_ms, piezo_period_frames, piezo_skip_frames)
     df_stims = extract_stims(df_voltage[stim_channel_name], shift_ms, buffer_ms)
 
     df_artefacts, data_processed = _preprocess(df_frames, df_stims, data)
-
-    qa_plot = qa.side_by_side_comparison(data, data_processed, df_artefacts)
 
     # Write output
     df_artefacts.to_hdf(artefacts_path, "artefacts")
@@ -94,9 +100,6 @@ def preprocess(
 
     with h5py.File(preprocess_h5_path, "w") as h5file:
         h5file.create_dataset("data", data=data_processed)
-
-    qa_plot.savefig(qa_plot_path)
-    logger.info("Stored QA plot in %s", qa_plot_path)
 
     logger.info("Done")
 
@@ -115,11 +118,12 @@ def _preprocess(df_frames, df_stims, data):
         num_time_slices = num_frames_voltage // data.shape[1]
         data = data[:num_time_slices]
 
+    logger.info("Identifying artefacts")
     df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims, data.shape)
 
     # Mask stim regions with nan, and then interpolate values for those pixels.
     # Temporarily use float32 in order to use nan.
-    logger.info("Identifying artefacts")
+    logger.info("Marking artefacts")
     data = data.astype(np.float32)
     for t, z, y0, y1 in df_artefacts[["t", "z", "pixel_start", "pixel_stop"]].values:
         data[t, z, y0:y1] = np.nan

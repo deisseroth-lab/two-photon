@@ -12,6 +12,7 @@ The analysis pipeline consists of the following stages:
 - raw2tiff: converts Bruker proprietary output format to a TIFF stack
 - convert: converts tiff and csv/text files to hdf5.
 - preprocess: detect and remove stim artefacts
+- qa: make QA plots to check stim artefact removal
 - analyze: run suite2p, optionally combining multiple preprocessed datasets
 - backup: back up input/intermediate/output data to a safe place
 
@@ -30,7 +31,7 @@ to be done once.
 ```bash
 conda env create -f environment.yml -n two-photon
 conda activate two-photon
-pip install -e .  # installs the 2p script
+pip install -e .  # installs the 2p script (in editable mode, so you can update the code)
 ```
 
 ### Executing
@@ -71,12 +72,14 @@ Using the following global flags (meaning after `2p` but before other commands o
 
 will use the following locations for the data. Note the expected location of the raw data.
 
-| data type                                   | location                                |
-| ------------------------------------------- | --------------------------------------- |
-| RAWDATA, csv, xml, and env files from scope | `/my/data/raw/20210428M198/slm-001`     |
-| tiff stacks                                 | `/my/data/tiff/20210428M198/slm-001`    |
-| convert                                     | `/my/data/convert/20210428M198/slm-001` |
-| analyze - suite2p output                    | `/my/data/analyze/20210428M198/slm-001` |
+| data type                                   | location                                   |
+| ------------------------------------------- | ------------------------------------------ |
+| RAWDATA, csv, xml, and env files from scope | `/my/data/raw/20210428M198/slm-001`        |
+| tiff stacks                                 | `/my/data/tiff/20210428M198/slm-001`       |
+| converted hdf5 data                         | `/my/data/convert/20210428M198/slm-001`    |
+| preprocess                                  | `/my/data/preprocess/20210428M198/slm-001` |
+| qa                                          | `/my/data/qa/20210428M198/slm-001`         |
+| analyze - suite2p output                    | `/my/data/analyze/20210428M198/slm-001`    |
 
 #### Command: raw2tiff
 
@@ -117,7 +120,38 @@ Example:
 2p \
     --base-path /my/data \
     --acquisition 20210428M198/slm-001 \
-    preprocess --stim-channel-name=respir
+    preprocess --frame-channel-name="frame starts" --stim-channel-name=respir
+```
+
+Example based on piezeo period:
+
+```sh
+2p \
+    --base-path /media/hdd0/two-photon/minoue2/2p_CNC/ \
+    --acquisition Chris_210429/10263_920nm_PC250-300-001  \
+    preprocess \
+    --frame-channel-name=StartFrameResonant \
+    --stim-channel-name=LEDSyncSignal \
+    --piezo-period-frames=7 \
+    --piezo-skip-frames=3
+```
+
+### Command: qa
+
+The `qa` command makes some QA plots to understand if the stim effects are
+being correctly removed during preprocessing. It plots a number of frames
+(given by --max-frames) containing stims, showing the data before and after
+stim removal.
+
+This is an optional step.
+
+Example:
+
+```sh
+2p \
+    --base-path /my/data \
+    --acquisition 20210428M198/slm-001 \
+    qa
 ```
 
 ### Command: analyze
