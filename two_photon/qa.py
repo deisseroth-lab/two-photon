@@ -68,13 +68,11 @@ def side_by_side_comparison(uncorrected, corrected, df_artefacts, num_frames=15,
         vmax = corrected[sample.t, sample.z].max()
 
         axes[idx][0].imshow(uncorrected[sample.t, sample.z], vmin=vmin, vmax=vmax)
-        axes[idx][0].axhline(sample.pixel_start, c="r", lw=2)
-        axes[idx][0].axhline(sample.pixel_stop, c="r", lw=2)
+        axes[idx][0].axhline(sample.row_start, c="r", lw=2)
+        axes[idx][0].axhline(sample.row_stop, c="r", lw=2)
 
         axes[idx][1].imshow(corrected[sample.t, sample.z], vmin=vmin, vmax=vmax)
-        axes[idx][1].axhline(sample.pixel_start, c="r", lw=2)
-        axes[idx][1].axhline(sample.pixel_stop, c="r", lw=2)
-
-        print(sample.pixel_start, sample.pixel_stop)
+        axes[idx][1].axhline(sample.row_start, c="r", lw=2)
+        axes[idx][1].axhline(sample.row_stop, c="r", lw=2)
 
     return figure

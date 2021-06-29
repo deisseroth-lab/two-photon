@@ -84,10 +84,10 @@ def preprocess(
     buffer_ms = buffer_px * px_to_ms
 
     logger.info("Identifying frame and stim windows")
-    df_frames = extract_frames(df_voltage[frame_channel_name], settle_ms, piezo_period_frames, piezo_skip_frames)
+    df_frames = extract_frames(df_voltage[frame_channel_name], settle_ms)
     df_stims = extract_stims(df_voltage[stim_channel_name], shift_ms, buffer_ms)
 
-    df_artefacts, data_processed = _preprocess(df_frames, df_stims, data)
+    df_artefacts, data_processed = _preprocess(df_frames, df_stims, data, piezo_period_frames, piezo_skip_frames)
 
     # Write output
     df_artefacts.to_hdf(artefacts_path, "artefacts")
@@ -104,31 +104,37 @@ def preprocess(
     logger.info("Done")
 
 
-def _preprocess(df_frames, df_stims, data):
+def _preprocess(df_frames, df_stims, data, piezo_period_frames=None, piezo_skip_frames=None):
     """Internal method of preprocess with no I/O for testing."""
-
-    num_frames_data = data.shape[0] * data.shape[1]  # time-slices * z-planes
-    num_frames_voltage = df_frames.shape[0]
-
-    # Correct ragged edges in the data - if there are extra frames in the
-    # data without corresponding frame_starts in the voltage data, or vice-versa.
-    if num_frames_data < num_frames_voltage:
-        df_frames = df_frames[:num_frames_data]
-    elif num_frames_voltage < num_frames_data:
-        num_time_slices = num_frames_voltage // data.shape[1]
-        data = data[:num_time_slices]
-
     logger.info("Identifying artefacts")
-    df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims, data.shape)
+    df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims)
+
+    y_shape = data.shape[2]
+    df_artefacts["row_start"] = np.floor(df_artefacts["frac_start"] * y_shape).astype(np.int64)
+    df_artefacts["row_stop"] = np.ceil(df_artefacts["frac_stop"] * y_shape).astype(np.int64)
+
+    z_shape = data.shape[1]
+    if piezo_period_frames is None:
+        df_artefacts["t"] = df_artefacts["frame"] // z_shape
+        df_artefacts["z"] = df_artefacts["frame"] % z_shape
+    else:
+        assert piezo_skip_frames, "piezo_skip_frames must be set if piezeo_period_frames is set"
+        assert z_shape == piezo_period_frames - piezo_skip_frames
+        df_artefacts["t"] = df_artefacts["frame"] // piezo_period_frames
+        df_artefacts["z"] = (df_artefacts["frame"] % piezo_period_frames) - piezo_skip_frames
+        df_artefacts = df_artefacts[df_artefacts["z"] >= 0]
+
+    # Remove extra voltage data, which can occur when using max-frames.
+    df_artefacts = df_artefacts[df_artefacts["t"] < data.shape[0]]
 
     # Mask stim regions with nan, and then interpolate values for those pixels.
     # Temporarily use float32 in order to use nan.
     logger.info("Marking artefacts")
     data = data.astype(np.float32)
-    for t, z, y0, y1 in df_artefacts[["t", "z", "pixel_start", "pixel_stop"]].values:
+    for t, z, y0, y1 in df_artefacts[["t", "z", "row_start", "row_stop"]].values:
         data[t, z, y0:y1] = np.nan
 
-    logger.info("Interpolating")
+    logger.info("Interpolating (can take several minutes)")
     data = interpolate.interpolate_nan(data)
     data = np.clip(data, 0, 65535)
     data = data.astype(np.uint16)
@@ -136,7 +142,7 @@ def _preprocess(df_frames, df_stims, data):
     return df_artefacts, data
 
 
-def extract_frames(frame_signal, settle_ms=0, piezo_period_frames=None, piezo_skip_frames=None):
+def extract_frames(frame_signal, settle_ms=0):
     """Extract frame start/stop times from a voltage recording of the frame trigger signal."""
     frames = frame_signal.apply(lambda x: 1 if x > 1 else 0)
     frames = frames[frames.diff() > 0.5].index
@@ -144,10 +150,6 @@ def extract_frames(frame_signal, settle_ms=0, piezo_period_frames=None, piezo_sk
     frame_stop = frames[1:] - settle_ms
     df_frames = pd.DataFrame({"start": frame_start, "stop": frame_stop})
     df_frames.index.name = "frame"
-    if piezo_period_frames is not None:
-        assert piezo_skip_frames, "piezo_skip_frames must be set if piezeo_period_frames is set"
-        piezo_sel = (np.arange(len(df_frames.index)) % piezo_period_frames) >= piezo_skip_frames
-        df_frames = df_frames[piezo_sel]
     return df_frames
 
 
