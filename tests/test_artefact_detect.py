@@ -16,17 +16,16 @@ def test_artefact_regions_single_frame():
         index=[0, 1, 2, 3, 4],
         columns=["start", "stop"],
     )
-    shape = (1, 1, 200, 200)
-    df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims, shape)
+    df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims)
 
     df_expected = pd.DataFrame(
         [
-            [0, 0, 0, 40],
-            [0, 0, 80, 120],
-            [0, 0, 160, 200],
+            [0, 0, 0.2],
+            [0, 0.4, 0.6],
+            [0, 0.8, 1.0],
         ],
         index=[1, 2, 3],
-        columns=["t", "z", "pixel_start", "pixel_stop"],
+        columns=["frame", "frac_start", "frac_stop"],
     )
     pd.testing.assert_frame_equal(df_artefacts, df_expected)
 
@@ -42,16 +41,15 @@ def test_artefact_regions_multi_frame_stim():
         columns=["start", "stop"],
     )
     df_stims = pd.DataFrame([[70, 120]], index=[42], columns=["start", "stop"])
-    shape = (2, 2, 200, 200)
-    df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims, shape)
+    df_artefacts = artefact_detect.artefact_regions(df_frames, df_stims)
 
     df_expected = pd.DataFrame(
         [
-            [0, 1, 120, 200],
-            [1, 0, 0, 200],
-            [1, 1, 0, 100],
+            [1, 0.6, 1.0],
+            [2, 0, 1.0],
+            [3, 0, 0.5],
         ],
         index=[42, 42, 42],
-        columns=["t", "z", "pixel_start", "pixel_stop"],
+        columns=["frame", "frac_start", "frac_stop"],
     )
     pd.testing.assert_frame_equal(df_artefacts, df_expected)
