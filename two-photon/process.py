@@ -10,7 +10,7 @@
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:VRmm-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess --run_suite2p --backup_output --backup_data --zip_data
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --preprocess --run_suite2p --prev_recording 202003M89:regL23-000
 # python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip --preprocess --run_suite2p --prev_recording 20200325M89:VRmm-000 --backup_output --backup_data
-# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip --preprocess --settle_time=5 --backup_output
+# python Documents\GitHub\two-photon\two-photon\process.py --input_dir E:\AD --output_dir E:\AD\output --recording 20200325M89:playback-000 --backup_dir=O:\users\drinnenb\Data2p\ --rip --preprocess --settle_time=5 --backup_output --channel 2
 
 import argparse
 from datetime import datetime
@@ -270,7 +270,11 @@ def run_suite2p(hdf5_list, dirname_output, mdata):
     logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in hdf5_list), params)
     with open(dirname_output / 'recording_order.json', 'w') as fout:
         json.dump([str(e) for e in hdf5_list], fout, indent=4)
-    suite2p.run_s2p(ops=default_ops, db=params)
+    try:
+        suite2p.run_s2p(ops=default_ops, db=params)
+    except:
+        print('suite2p error')
+    
     import imageio
     import matplotlib.pyplot as plt
     dns = dirname_output / 'suite2p' / 'plane?' / 'ops.npy'
