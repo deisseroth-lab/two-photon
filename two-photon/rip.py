@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 # Ripping process does not end cleanly, so the filesystem is polled to detect the
 # processing finishing.  The following variables relate to the timing of that polling
 # process.
-RIP_TOTAL_WAIT_SECS = 3600  # Total time to wait for ripping before killing it.
-RIP_EXTRA_WAIT_SECS = 10  # Extra time to wait after ripping is detected to be done.
+RIP_TOTAL_WAIT_SECS = 60*60*10  # Total time to wait for ripping before killing it.
+RIP_EXTRA_WAIT_SECS = 60*60*10  # Extra time to wait after ripping is detected to be done.
 RIP_POLL_SECS = 10  # Time to wait between polling the filesystem.
 
 
@@ -35,6 +35,7 @@ def determine_ripper(data_dir, ripper_dir):
     version = root.attrib['version']
 
     # Prairie View versions are given in the form A.B.C.D.
+    # TODO: allow match when minor version mismatches, eg fall back to `version = '5.5.1.1'`
     match = re.match(r'^(?P<majmin>\d+\.\d+)\.\d+\.\d+$', version)
     if not match:
         raise RippingError('Could not parse version (expected A.B.C.D): %s' % version)

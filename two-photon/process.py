@@ -121,7 +121,7 @@ def main():
                 prev_data = get_dirname_hdf5(sn, rn) / 'data' / 'data.h5'
                 data_files.append(prev_data)
             data_files.append(fname_hdf5)
-            run_suite2p(data_files, dirname_output, mdata)
+            run_suite2p(data_files, dirname_output, mdata, args.ops_suite2p)
 
     if args.backup_output:
         backup(dirname_output, dirname_backup / 'output')
@@ -156,8 +156,7 @@ def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fna
                stim_channel_name, settle_time):
     """Main method for running processing of TIFF files into HDF5."""
     size = mdata['size']
-
-    df_voltage = pd.read_csv(fname_csv, index_col='Time(ms)', skipinitialspace=True)
+    df_voltage = pd.read_csv(fname_csv, skipinitialspace=True)
     logger.info('Read voltage recordings from: %s, preview:\n%s', fname_csv, df_voltage.head())
     fname_frame_start = dirname_output / 'frame_start.h5'
     frame_start = artefacts.get_frame_start(df_voltage, fname_frame_start)
@@ -241,13 +240,19 @@ def run_cmd(cmd, expected_returncode, shell=False):
     logger.info('Output:\n%s', result.stdout.decode('utf-8'))
 
 
-def run_suite2p(hdf5_list, dirname_output, mdata):
+def run_suite2p(hdf5_list, dirname_output, mdata, ops_file=None):
     z_planes = mdata['size']['z_planes']
     fs_param = 1. / (mdata['period'] * z_planes)
 
     # Load suite2p only right before use, as it has a long load time.
+    import suite2p
     from suite2p import run_s2p
-    default_ops = run_s2p.default_ops()
+    if ops_file is None:
+        ops = suite2p.default_ops()
+    else:
+        # from:
+        # https://github.com/MouseLand/suite2p/blob/4b6c3a95b53e5581dbab1feb26d67878db866068/suite2p/gui/rungui.py#L472
+        ops = np.load(ops_file, allow_pickle=True).item()
     params = {
         'input_format': 'h5',
         'data_path': [str(f.parent) for f in hdf5_list],
@@ -264,7 +269,7 @@ def run_suite2p(hdf5_list, dirname_output, mdata):
     logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in hdf5_list), params)
     with open(dirname_output / 'recording_order.json', 'w') as fout:
         json.dump([str(e) for e in hdf5_list], fout, indent=4)
-    run_s2p.run_s2p(ops=default_ops, db=params)
+    run_s2p(ops=ops, db=params)
 
 
 def parse_args():
@@ -294,6 +299,8 @@ def parse_args():
                        default='Z:/mSLM/SetupFiles/Experiment',
                        help='Top level directory for SLM setup data')
     group.add_argument('--output_dir', type=pathlib.Path, help='Top level directory of data processing')
+
+    group.add_argument('--suite2p-ops', type=pathlib.Path, help='.ops file for suite2p', default=None)
 
     group.add_argument('--recording',
                        type=str,
