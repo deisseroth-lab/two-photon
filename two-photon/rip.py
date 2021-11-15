@@ -35,10 +35,10 @@ def determine_ripper(data_dir, ripper_dir):
     version = root.attrib['version']
 
     # Prairie View versions are given in the form A.B.C.D.
-    match = re.match(r'^(?P<majmin>\d+\.\d+)\.\d+\.\d+$', version)
+    match = re.match(r'^d+\.\d+\.\d+\.\d+$', version)
     if not match:
         raise RippingError('Could not parse version (expected A.B.C.D): %s' % version)
-    version = match.group('majmin')
+    version = match.group(0)
     ripper = ripper_dir / f'Prairie View {version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
     logger.info('Data created with Prairie version %s, using ripper: %s', version, ripper)
     return ripper
