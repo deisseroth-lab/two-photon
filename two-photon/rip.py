@@ -35,7 +35,7 @@ def determine_ripper(data_dir, ripper_dir):
     
     # Prairie View versions are given in the form A.B.C.D.
     version = root.attrib['version']
-    ripper = ripper_dir / 'prairie_view' / f'{version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
+    ripper = ripper_dir / f'{version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
     logger.info('Data created with Prairie version %s, using ripper: %s', version, ripper)
     return ripper
 
