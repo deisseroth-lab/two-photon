@@ -32,14 +32,10 @@ def determine_ripper(data_dir, ripper_dir):
 
     tree = ET.parse(str(data_dir / env_files[0]))
     root = tree.getroot()
-    version = root.attrib['version']
-
+    
     # Prairie View versions are given in the form A.B.C.D.
-    match = re.match(r'^d+\.\d+\.\d+\.\d+$', version)
-    if not match:
-        raise RippingError('Could not parse version (expected A.B.C.D): %s' % version)
-    version = match.group(0)
-    ripper = ripper_dir / f'Prairie View {version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
+    version = root.attrib['version']
+    ripper = ripper_dir / 'prairie_view' / f'{version}' / 'Utilities' / 'Image-Block Ripping Utility.exe'
     logger.info('Data created with Prairie version %s, using ripper: %s', version, ripper)
     return ripper
 
