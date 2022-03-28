@@ -31,6 +31,9 @@ import metadata
 import rip
 import tiffdata
 import transform
+import imageio
+import matplotlib.pyplot as plt
+import shutil
 
 STIM_CHANNEL_NUM = 7
 
@@ -76,11 +79,7 @@ def main():
         rip.raw_to_tiff(dirname_input, args.ripper)
 
     # Quick exit if our only operation is to rip
-    if not (args.backup_data or args.preprocess or args.run_suite2p or args.backup_output or args.backup_hdf5):
-        return
-
-    # Quick exit if our only operation is to rip
-    if not (args.backup_data or args.preprocess or args.run_suite2p or args.backup_output or args.backup_hdf5):
+    if not (args.backup_data or args.preprocess or args.run_suite2p or args.backup_output or args.backup_hdf5 or args.run_cellpose):
         return
 
     mdata = metadata.read(basename_input, dirname_output)
@@ -104,12 +103,17 @@ def main():
         else:
             backup(dirname_input, dirname_backup / 'data')
 
-    if args.preprocess or args.run_suite2p:
+    if args.preprocess or args.run_suite2p or args.run_cellpose:
         fname_uncorrected_hdf5 = dirname_hdf5 / 'uncorrected' / 'uncorrected.h5'
         # This needs to be kept in sync with prev_data format below.
         # NOTE: The hdf5 file needs to be in its own directory with no other hdf5 files.  This is because
         # Suite2p uses whole directories, not filenames, when searching for data.
         fname_hdf5 = dirname_hdf5 / 'data' / 'data.h5'
+        if args.run_cellpose:
+            channels =[args.channel]
+            if args.struct_channel>-1:
+                channels.append(args.struct_channel)
+            cellpose(basename_input,dirname_output,mdata,channels,dirname_hdf5)
         if args.preprocess:
             preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected_hdf5, fname_hdf5, mdata,
                        args.artefact_buffer*mdata['period']*1000/mdata['size']['y_px'], args.artefact_shift*mdata['period'], args.channel, stim_channel_name, args.settle_time)
@@ -143,10 +147,11 @@ def main():
             backup(trial_order_path,dirname_backup / 'trial_order')
             # backup_pattern(slm_root, slm_trial_order_pattern, dirname_backup / 'trial_order')
 
-        backup_done_file = args.backup_dir / 'backup_done' / f'{session_name}_{recording_name}_ETL{args.ETL_depths}.backup_done'
-        backup_done_file.parent.mkdir(parents=True, exist_ok=True)
-        logger.info('Creating backup_done file: %s', backup_done_file)
-        backup_done_file.touch()
+        if len(args.ETL_depths)>0:
+            backup_done_file = args.backup_dir / 'backup_done' / f'{session_name}_{recording_name}_ETL{args.ETL_depths}.backup_done'
+            backup_done_file.parent.mkdir(parents=True, exist_ok=True)
+            logger.info('Creating backup_done file: %s', backup_done_file)
+            backup_done_file.touch()
 
     if args.backup_hdf5:
         backup(dirname_hdf5, dirname_backup / 'hdf5')
@@ -161,6 +166,8 @@ def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fna
     logger.info('Read voltage recordings from: %s, preview:\n%s', fname_csv, df_voltage.head())
     fname_frame_start = dirname_output / 'frame_start.h5'
     frame_start = artefacts.get_frame_start(df_voltage, fname_frame_start)
+    pulse_train = df_voltage[mdata['channels'][4]['name']]
+    artefacts.get_write_vrPulses(pulse_train, dirname_output / 'vr_frame_pulses.h5')
 
     if stim_channel_name:
         fname_artefacts = dirname_output / 'artefact.h5'
@@ -172,6 +179,58 @@ def preprocess(basename_input, dirname_output, fname_csv, fname_uncorrected, fna
     data = tiffdata.read(basename_input, size, mdata['layout'], channel)
     transform.convert(data, fname_data, df_artefacts, fname_uncorrected)
 
+def cellpose(basename_input,dirname_output,mdata,channels,dirname_hdf5):
+    #ecalculates mean image for both channels
+    #runs cellpose on struct_chan if exists (second element in channels), otherwise on first element of channels
+    size = mdata['size']
+    dirname_mean = dirname_output / 'mean_images'
+    #import pdb
+    #pdb.set_trace()
+    s2p_params = {
+        'roidetect': False
+
+    }
+    
+    
+    os.makedirs(dirname_mean, exist_ok=True)
+    for c in channels:
+        dirname_this_channel = dirname_output / 'channel_{}'.format(c)
+        
+        
+        data = tiffdata.read(basename_input, size, mdata['layout'], c)
+        fname_hdf5 = dirname_hdf5 / 'data_channel_{}'.format(c) / 'data.h5'
+        transform.convert(data, fname_hdf5)
+        os.makedirs(dirname_this_channel, exist_ok=True)
+        
+        run_suite2p([fname_hdf5],dirname_this_channel,mdata,s2p_params)
+        for layer in range(mdata['size']['z_planes']):
+            src = dirname_this_channel / 'suite2p' / 'plane{}'.format(layer) / 'meanImage.tif'
+            dest = dirname_mean / 'plane{}_channel_{}.tif'.format(layer,c)
+            shutil.copyfile(src,dest)
+        # m = data.sum(axis=0).compute()
+        # for layer in range(mdata['size']['z_planes']):
+        #     fnt = dirname_mean / 'plane{}_channel_{}.tif'.format(layer,c)
+        #     #fnt = fname_data.replace('.h5','_plane{}.tif'.format(layer))
+        #     imageio.imwrite(fnt,np.squeeze(m[layer]))
+    os.environ['KMP_DUPLICATE_LIB_OK']='True' #without this statement, it will crash on some systems
+    from cellpose import models, io    
+    import glob 
+    last_element = channels[0] if len(channels)==1 else channels[1]
+    file_filter = '*channel_{}.tif'.format(last_element) 
+    files = glob.glob(os.path.join(dirname_mean,file_filter))
+    diameter = 14.
+    model = models.Cellpose(gpu=False, model_type='cyto2')
+    cp_channels = [0,0]
+    for filename in files:
+        img = io.imread(filename)
+        masks, flows, styles, diams = model.eval(img, diameter=14., channels=[0,0],verbose=True)
+
+        # save results so you can load in gui
+        io.masks_flows_to_seg(img, masks, flows, diams, filename, [0,0])
+
+        # save results as png
+        io.save_to_png(img, masks, flows, filename)
+    os.environ['KMP_DUPLICATE_LIB_OK']='False'
 
 def backup(local_location, backup_location):
     """Sync local data to backup directory."""
@@ -241,12 +300,12 @@ def run_cmd(cmd, expected_returncode, shell=False):
     logger.info('Output:\n%s', result.stdout.decode('utf-8'))
 
 
-def run_suite2p(hdf5_list, dirname_output, mdata):
+def run_suite2p(hdf5_list, dirname_output, mdata,cellpose_ops={}):
     z_planes = mdata['size']['z_planes']
     fs_param = 1. / (mdata['period'] * z_planes)
 
     # Load suite2p only right before use, as it has a long load time.
-    #from suite2p import run_s2p
+    from suite2p import run_s2p
     import suite2p
     default_ops = suite2p.default_ops()
     params = {
@@ -257,24 +316,25 @@ def run_suite2p(hdf5_list, dirname_output, mdata):
         'fs': fs_param,
         'save_mat': True,
         'bidi_corrected': True,
-        'spatial_hp': 100,#50,
+        'spatial_hp': 100,  #50,
         'sparse_mode': False,
-        'threshold_scaling': 3,
-        'diameter': 12,#6,
-        'nbinned':2500,
-        'tau':1.,
-        'batch_size': 250, #default 500
-        'spatial_scale':2., #default 0
-
+        'threshold_scaling': 2, #3 for g8m ARE started to use 2 instead of 3
+        'diameter': 12,  # 12,#6, 211102: 48
+        'nbinned': 2500,
+        'tau': 1.,
+        'batch_size': 250,  #default 500
+        'spatial_scale': 4.,  #default 0  211102:12 4. usually at 2.
     }
+    params = {**params,**cellpose_ops}
     logger.info('Running suite2p on files:\n%s\n%s', '\n'.join(str(f) for f in hdf5_list), params)
     with open(dirname_output / 'recording_order.json', 'w') as fout:
         json.dump([str(e) for e in hdf5_list], fout, indent=4)
     try:
-        suite2p.run_s2p(ops=default_ops, db=params)
+        #suite2p.run_s2p(ops=default_ops, db=params)
+        ops = suite2p.run_s2p(ops=default_ops, db=params)
     except:
         print('suite2p error')
-    
+
     import imageio
     import matplotlib.pyplot as plt
     dns = dirname_output / 'suite2p' / 'plane?' / 'ops.npy'
@@ -325,7 +385,10 @@ def parse_args():
                        default=[],
                        help=('Name of one or more already preprocessed recordings to merge during suite2p.  '
                              'See --recording for format.'))
+    group.add_argument('--run_cellpose',action='store_true', help='Channel containing struct channel, -1 if not required')
 
+    group.add_argument('--struct_channel',type=int,default = 3, help='structure channel, works with cellpose only for now')
+    
     group.add_argument('--channel', type=int, default=3, help='Microscrope channel containing the two-photon data')
     group.add_argument(
         '--settle_time',
@@ -343,7 +406,7 @@ def parse_args():
     group.add_argument('--backup_output', action='store_true', help='Backup all output processing')
     group.add_argument('--backup_dir', type=pathlib.Path, default='', help='Remote dirname to sync results to.')
     group.add_argument('--ETL_depths',
-                       type=str,
+                       type=str, default='',
                        help=('ETL depth for each plane in um, separated by _, only used for .backup_done file name '
                              'e.g. -30_0_30'))
 

@@ -92,3 +92,18 @@ def get_loc(times, frame_start, y_px, shape, settle_time):
     y_offset = np.minimum(y_px, y_offset)
 
     return idx, y_offset
+
+def get_write_vrPulses(pulse_train,fname):
+
+    frame_start_vr = pulse_train.apply(lambda x: 1 if x > 1 else 0)
+    frame_start = frame_start_vr[frame_start_vr.diff() > 0.5].index
+    frame_start.to_series().to_hdf(fname, 'vr_pulses', mode='a')
+    logger.info('Stored calculated vr frame starts in %s, preview:\n%s', fname, frame_start[:5])
+
+    # vr_pulses = pulse_train>1
+
+    # vr_timestamps = pulse_train[vr_pulses.diff()>0.5]
+    # import pdb
+    # pdb.set_trace()
+
+    # vr_timestamps.to_hdf(fname,'vr_pulses',mode='a')
