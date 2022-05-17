@@ -56,7 +56,8 @@ def convert(data, fname_data, df_artefacts=None, fname_uncorrected=None):
                                                 depth=depth,
                                                 dtype=data.dtype,
                                                 df=df_artefacts,
-                                                mydepth=depth)
+                                                mydepth=depth,
+                                                boundary = 'reflect')
             unlink(fname_data)
             os.makedirs(fname_data.parent, exist_ok=True)
             data_corrected.to_hdf5(fname_data, HDF5_KEY)
